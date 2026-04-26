@@ -1,0 +1,68 @@
+# --- Environment / secrets -------------------------------------------------
+# Real .env never gets committed. Only .env.example does.
+.env
+.env.*
+!.env.example
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtualenvs (any common name)
+.venv/
+venv/
+qaenv/
+env/
+ENV/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# --- Node / Cypress --------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+
+# Cypress generated artifacts (the agent writes these at runtime)
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/
+
+# --- LangGraph runtime -----------------------------------------------------
+checkpoints.db
+checkpoints.db-shm
+checkpoints.db-wal
+*.db-shm
+*.db-wal
+
+# --- Generated reports -----------------------------------------------------
+reports/*.md
+
+# --- OS noise --------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+__MACOSX/
+
+# --- Editors / IDEs --------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Logs ------------------------------------------------------------------
+*.log

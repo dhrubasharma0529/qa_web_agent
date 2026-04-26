@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  qa-agent:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount generated test artefacts so they persist on the host
+      - ./cypress:/app/cypress
+      - ./reports:/app/reports
+    extra_hosts:
+      # Allow Playwright inside the container to reach the host's localhost
+      # Use http://host.docker.internal:<port> as the target URL when TARGET_ENV=local
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    environment:
+      # Override TARGET_ENV to "local" when testing a locally-running app
+      # TARGET_ENV: local
+      TARGET_ENV: ${TARGET_ENV:-cloud}
+    restart: unless-stopped

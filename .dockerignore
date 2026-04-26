@@ -1,0 +1,77 @@
+# Same shape as .gitignore, but its job is different:
+# .gitignore controls what git tracks. .dockerignore controls what
+# Docker copies into the build context for `COPY . .`. Anything matched
+# here is invisible to the build — saving time, image size, and cache busts.
+
+# --- Secrets ---------------------------------------------------------------
+# .env is loaded via env_file at run time; it must NOT be copied into the image.
+.env
+.env.*
+!.env.example
+
+# --- Python virtualenvs (the Windows-built qaenv is the big one) ----------
+qaenv/
+venv/
+.venv/
+env/
+ENV/
+
+# --- Python caches / build artifacts --------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# --- Node ------------------------------------------------------------------
+# node_modules is reinstalled inside the container by `npm install`
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Cypress generated artifacts ------------------------------------------
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/
+
+# --- LangGraph runtime state -----------------------------------------------
+checkpoints.db
+checkpoints.db-shm
+checkpoints.db-wal
+*.db-shm
+*.db-wal
+
+# --- Generated reports -----------------------------------------------------
+reports/*.md
+
+# --- Git history (huge, never needed inside the image) --------------------
+.git/
+.gitignore
+.gitattributes
+
+# --- IDE / editor / OS noise ----------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+__MACOSX/
+
+# --- Docker meta (Docker reads these directly, doesn't need them in image)
+Dockerfile
+docker-compose.yml
+docker-compose.*.yml
+.dockerignore
+
+# --- Logs ------------------------------------------------------------------
+*.log

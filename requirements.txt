@@ -1,0 +1,17 @@
+langgraph
+langgraph-cli[inmem]
+langchain
+langchain-openai
+langchain-text-splitters
+python-dotenv
+httpx
+playwright
+fastapi
+uvicorn[standard]
+pydantic>=2.0
+pydantic-settings>=2.0
+langsmith
+tiktoken
+beautifulsoup4
+langgraph-checkpoint-sqlite
+aiosqlite

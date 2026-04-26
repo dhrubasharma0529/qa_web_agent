@@ -1,0 +1,7 @@
+# Dev/CI-only dependencies. Installed alongside requirements.txt during CI runs.
+# Production images should NOT install these.
+
+-r requirements.txt
+
+pytest>=8.0
+pytest-asyncio>=0.23

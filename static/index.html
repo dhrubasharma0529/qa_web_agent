@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QA-Web-Agent V2</title>
+  <style>
+    :root {
+      --bg:          #0d1117;
+      --surface:     #161b22;
+      --surface2:    #1c2128;
+      --border:      #30363d;
+      --border-dim:  #21262d;
+      --accent:      #58a6ff;
+      --accent-dim:  #1f3a5f;
+      --green:       #3fb950;
+      --green-dim:   #1a3a1a;
+      --red:         #f85149;
+      --red-dim:     #3d1114;
+      --yellow:      #d29922;
+      --yellow-dim:  #3b2304;
+      --purple:      #bc8cff;
+      --purple-dim:  #2d1f5e;
+      --text:        #e6edf3;
+      --text-dim:    #8b949e;
+      --text-muted:  #484f58;
+      --mono:        'SF Mono','Fira Code','Cascadia Code',monospace;
+      --radius:      10px;
+    }
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* ── Scrollbars ─────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Layout ─────────────────────────────── */
+    .app { max-width: 1300px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+    header {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-size: 1.4rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--green));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .badge {
+      font-size: 0.68rem; padding: 0.2rem 0.55rem;
+      border: 1px solid var(--border); border-radius: 12px;
+      color: var(--text-dim);
+    }
+    .badge.v2 { border-color: var(--purple); color: var(--purple); }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+
+    /* ── Cards ──────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-title {
+      font-size: 0.8rem; font-weight: 600;
+      color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 1rem;
+    }
+
+    /* ── Inputs ─────────────────────────────── */
+    label { display:block; font-size:0.78rem; color:var(--text-dim); font-weight:500; margin-bottom:0.35rem; }
+
+    input[type=url], textarea, select {
+      width:100%; background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; padding:0.7rem 1rem; color:var(--text);
+      font-family:inherit; font-size:0.88rem; outline:none;
+      transition:border-color 0.18s;
+    }
+    input[type=url]:focus, textarea:focus, select:focus { border-color:var(--accent); }
+
+    textarea { min-height:130px; resize:vertical; font-family:var(--mono); font-size:0.8rem; line-height:1.55; }
+    textarea.tc-editor { min-height:260px; }
+    textarea.sm { min-height:70px; }
+
+    .form-grid { display:grid; gap:1rem; grid-template-columns:2fr 1fr; }
+    .form-full { grid-column: 1/-1; }
+
+    /* ── Mode Toggle ────────────────────────── */
+    .mode-toggle {
+      display:flex; border:1px solid var(--border);
+      border-radius:8px; overflow:hidden; width:fit-content;
+    }
+    .mode-toggle label {
+      margin:0; padding:0.55rem 1.1rem; cursor:pointer;
+      font-size:0.82rem; font-weight:600; color:var(--text-dim);
+      transition:all 0.18s; user-select:none;
+    }
+    .mode-toggle input[type=radio] { display:none; }
+    .mode-toggle input[type=radio]:checked + label {
+      background:var(--accent-dim); color:var(--accent);
+    }
+    .mode-toggle label:hover { color:var(--text); }
+
+    /* ── Buttons ────────────────────────────── */
+    .btn {
+      font-family:inherit; font-size:0.87rem; font-weight:600;
+      padding:0.65rem 1.4rem; border-radius:8px; border:none;
+      cursor:pointer; transition:all 0.18s; display:inline-flex;
+      align-items:center; gap:0.45rem; white-space:nowrap;
+    }
+    .btn:disabled { opacity:0.4; cursor:not-allowed; }
+    .btn-primary { background:var(--accent); color:#fff; }
+    .btn-primary:hover:not(:disabled) { filter:brightness(1.15); }
+    .btn-success { background:var(--green); color:#000; }
+    .btn-success:hover:not(:disabled) { filter:brightness(1.1); }
+    .btn-danger  { background:var(--red); color:#fff; }
+    .btn-danger:hover:not(:disabled) { filter:brightness(1.1); }
+    .btn-warning { background:var(--yellow); color:#000; }
+    .btn-warning:hover:not(:disabled) { filter:brightness(1.1); }
+    .btn-ghost {
+      background:transparent; border:1px solid var(--border); color:var(--text-dim);
+    }
+    .btn-ghost:hover:not(:disabled) { border-color:var(--text-dim); color:var(--text); }
+    .btn-sm { padding:0.4rem 0.9rem; font-size:0.78rem; }
+    .btn-icon { padding:0.5rem 0.7rem; }
+
+    .btn-row { display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; }
+
+    /* ── Status ─────────────────────────────── */
+    .status-pill {
+      display:inline-flex; align-items:center; gap:0.45rem;
+      font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:20px;
+      font-weight:600;
+    }
+    .status-pill .dot { width:7px; height:7px; border-radius:50%; }
+    .status-idle   { color:var(--text-dim); }
+    .status-running { background:var(--yellow-dim); color:var(--yellow); }
+    .status-running .dot { background:var(--yellow); animation:pulse 1s infinite; }
+    .status-paused  { background:var(--purple-dim); color:var(--purple); }
+    .status-paused .dot { background:var(--purple); animation:pulse 0.8s infinite; }
+    .status-done    { background:var(--green-dim); color:var(--green); }
+    .status-done .dot { background:var(--green); }
+    .status-error   { background:var(--red-dim); color:var(--red); }
+    .status-error .dot { background:var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+    /* ── Pipeline Progress ──────────────────── */
+    .pipeline {
+      display:flex; align-items:stretch;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); overflow:hidden; margin-bottom:1rem;
+    }
+    .phase-step {
+      flex:1; padding:0.75rem 0.5rem; text-align:center;
+      border-right:1px solid var(--border); position:relative;
+      transition:background 0.25s;
+    }
+    .phase-step:last-child { border-right:none; }
+    .phase-step .ps-icon { font-size:1.1rem; line-height:1; }
+    .phase-step .ps-name { font-size:0.7rem; color:var(--text-dim); margin-top:0.25rem; font-weight:600; }
+    .phase-step .ps-status { font-size:0.65rem; color:var(--text-muted); margin-top:0.1rem; }
+    .phase-step .ps-detail { font-size:0.6rem; color:var(--text-muted); margin-top:0.15rem; font-family:var(--mono); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .phase-step.ps-done   { background:var(--green-dim); }
+    .phase-step.ps-done .ps-name { color:var(--green); }
+    .phase-step.ps-active { background:var(--accent-dim); }
+    .phase-step.ps-active .ps-name { color:var(--accent); }
+    .phase-step.ps-gate   { background:var(--purple-dim); }
+    .phase-step.ps-skipped { background:var(--surface2); opacity:0.5; }
+    .phase-step.ps-skipped .ps-name { color:var(--text-muted); }
+    .phase-step.ps-gate .ps-name { color:var(--purple); }
+    .phase-step.ps-error  { background:var(--red-dim); }
+    .phase-step.ps-error .ps-name { color:var(--red); }
+
+    /* ── Live Activity Feed (below pipeline) ─── */
+    #activity-feed {
+      display:none; background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); padding:0.75rem 1rem; margin-bottom:1rem;
+      max-height:120px; overflow-y:auto;
+    }
+    .activity-item {
+      display:flex; align-items:center; gap:0.5rem;
+      padding:0.2rem 0; font-size:0.75rem; font-family:var(--mono);
+      border-bottom:1px solid var(--border-dim);
+      animation: fadeIn 0.25s ease;
+    }
+    .activity-item:last-child { border-bottom:none; }
+    .activity-item .ai-icon { flex-shrink:0; }
+    .activity-item .ai-time { color:var(--text-muted); flex-shrink:0; width:6ch; }
+    .activity-item .ai-msg { color:var(--text-dim); }
+    .activity-item.ai-file .ai-msg { color:var(--green); }
+    .activity-item.ai-lint .ai-msg { color:var(--yellow); }
+    .activity-item.ai-error .ai-msg { color:var(--red); }
+    .activity-item.ai-done .ai-msg { color:var(--green); font-weight:600; }
+
+    /* ── File generation cards (live) ────────── */
+    .gen-files-grid {
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+      gap:0.5rem; margin-top:0.5rem;
+    }
+    .gen-file-card {
+      background:var(--bg); border:1px solid var(--border);
+      border-radius:6px; padding:0.5rem 0.7rem;
+      font-size:0.75rem; font-family:var(--mono);
+      display:flex; align-items:center; gap:0.4rem;
+      animation: fadeIn 0.3s ease;
+    }
+    .gen-file-card .gf-icon { flex-shrink:0; }
+    .gen-file-card .gf-name { color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gen-file-card.gf-new { border-color:var(--green); }
+    .gen-file-card.gf-lint-ok { border-color:var(--green); }
+    .gen-file-card.gf-lint-err { border-color:var(--red); }
+
+    /* ── Lint status banner ─────────────────── */
+    .lint-banner {
+      display:flex; align-items:center; gap:0.75rem;
+      padding:0.6rem 1rem; border-radius:8px; margin-top:0.5rem;
+      font-size:0.78rem; font-weight:600;
+    }
+    .lint-banner.lint-pass { background:var(--green-dim); color:var(--green); border:1px solid var(--green); }
+    .lint-banner.lint-fail { background:var(--red-dim); color:var(--red); border:1px solid var(--red); }
+    .lint-banner .lb-detail { font-weight:400; font-size:0.72rem; margin-left:auto; font-family:var(--mono); }
+
+    /* ── HITL Banner ────────────────────────── */
+    #hitl-banner {
+      display:none;
+      background: linear-gradient(135deg, var(--purple-dim), var(--surface));
+      border:1px solid var(--purple);
+      border-radius:var(--radius);
+      padding:1rem 1.5rem;
+      margin-bottom:1rem;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+    .hitl-banner-header {
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      margin-bottom:0.75rem;
+    }
+    .hitl-banner-title {
+      font-size:1rem; font-weight:700; color:var(--purple);
+      display:flex; align-items:center; gap:0.5rem;
+    }
+    .hitl-banner-sub { font-size:0.82rem; color:var(--text-dim); margin-top:0.15rem; }
+    #hitl-content { margin-top:0.75rem; }
+
+    /* ── HITL Phase Reviewers ───────────────── */
+    .hitl-section { margin-bottom:1.25rem; }
+    .hitl-section-title {
+      font-size:0.75rem; font-weight:600; text-transform:uppercase;
+      letter-spacing:0.06em; color:var(--text-dim); margin-bottom:0.5rem;
+    }
+    .hitl-actions {
+      background:var(--surface2);
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:1rem;
+      margin-top:0.75rem;
+    }
+    .hitl-feedback { margin-bottom:0.75rem; }
+    .hitl-feedback label { font-size:0.78rem; color:var(--text-dim); margin-bottom:0.35rem; }
+
+    /* ── Test Case Editor ───────────────────── */
+    .tc-edit-card {
+      background:var(--bg); border:1px solid var(--border); border-radius:8px;
+      padding:0.85rem; margin-bottom:0.6rem;
+    }
+    .tc-edit-card .tc-edit-header {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:0.5rem; gap:0.5rem;
+    }
+    .tc-edit-card input[type=text], .tc-edit-card select {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:6px; padding:0.4rem 0.65rem; color:var(--text);
+      font-size:0.82rem; width:100%;
+    }
+    .tc-field-row { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.5rem; }
+    .tc-field-full { grid-column:1/-1; }
+    .tc-del-btn {
+      background:transparent; border:none; color:var(--red); cursor:pointer;
+      font-size:1rem; padding:0.2rem 0.4rem; border-radius:4px;
+      flex-shrink:0;
+    }
+    .tc-del-btn:hover { background:var(--red-dim); }
+
+    /* ── Tabs ───────────────────────────────── */
+    .output-panel {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); overflow:hidden;
+    }
+    .tabs {
+      display:flex; border-bottom:1px solid var(--border);
+      overflow-x:auto; background:var(--surface2);
+    }
+    .tab {
+      padding:0.7rem 1.1rem; font-size:0.8rem; color:var(--text-dim);
+      cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;
+      transition:all 0.18s; font-weight:500; user-select:none;
+    }
+    .tab:hover { color:var(--text); }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); background:var(--surface); }
+    .tab .cnt {
+      display:inline-block; min-width:1.1em; padding:0.1rem 0.35rem;
+      margin-left:0.35rem; font-size:0.65rem; border-radius:8px;
+      background:var(--accent-dim); color:var(--accent); text-align:center;
+    }
+    .tab .cnt.red { background:var(--red-dim); color:var(--red); }
+    .tab .cnt.green { background:var(--green-dim); color:var(--green); }
+
+    .tab-content {
+      display:none; padding:1.25rem;
+      max-height:560px; overflow-y:auto;
+    }
+    .tab-content.active { display:block; }
+
+    /* ── Log stream ─────────────────────────── */
+    .log-stream { font-family:var(--mono); font-size:0.75rem; line-height:1.7; }
+    .log-entry {
+      padding:0.2rem 0; border-bottom:1px solid var(--border-dim);
+      display:flex; gap:0.65rem;
+    }
+    .log-entry .lt { color:var(--text-muted); flex-shrink:0; width:7ch; }
+    .log-entry .ln {
+      color:var(--accent); font-weight:600; min-width:20ch; flex-shrink:0;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .log-entry .lm { color:var(--text); word-break:break-word; }
+    .log-entry.lerr .lm { color:var(--red); }
+    .log-entry.ldone .lm { color:var(--green); }
+    .log-entry.lgate .ln { color:var(--purple); }
+    .log-entry.lgate .lm { color:var(--purple); font-weight:600; }
+
+    /* ── Generic blocks ─────────────────────── */
+    pre.code {
+      background:var(--bg); border:1px solid var(--border); border-radius:8px;
+      padding:1rem; font-family:var(--mono); font-size:0.76rem; line-height:1.6;
+      overflow:auto; white-space:pre-wrap; word-break:break-word; color:var(--text);
+    }
+    .data-card {
+      background:var(--bg); border:1px solid var(--border); border-radius:8px;
+      padding:1rem; margin-bottom:0.65rem;
+    }
+    .data-card .dc-title { font-weight:600; margin-bottom:0.3rem; }
+    .data-card .dc-sub { font-size:0.82rem; color:var(--text-dim); }
+
+    .section-title {
+      font-size:0.75rem; font-weight:600; text-transform:uppercase;
+      letter-spacing:0.06em; color:var(--text-dim); margin-bottom:0.6rem;
+      margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--border-dim);
+    }
+    .section-title:first-child { border-top:none; margin-top:0; padding-top:0; }
+
+    .sev-badge {
+      font-size:0.65rem; padding:0.1rem 0.45rem; border-radius:8px;
+      text-transform:uppercase; font-weight:700;
+    }
+    .sev-critical { background:var(--red-dim); color:var(--red); }
+    .sev-high     { background:var(--yellow-dim); color:var(--yellow); }
+    .sev-medium   { background:var(--green-dim); color:var(--green); }
+    .sev-low      { background:var(--accent-dim); color:var(--accent); }
+    .sev-bug      { background:var(--red-dim); color:var(--red); }
+    .sev-test     { background:var(--yellow-dim); color:var(--yellow); }
+
+    .stat-row {
+      display:flex; gap:1.5rem; flex-wrap:wrap;
+      background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; padding:0.75rem 1rem; margin-bottom:0.75rem;
+    }
+    .stat { text-align:center; }
+    .stat .sv { font-size:1.4rem; font-weight:700; }
+    .stat .sl { font-size:0.7rem; color:var(--text-dim); margin-top:0.15rem; }
+    .stat.green .sv { color:var(--green); }
+    .stat.red .sv { color:var(--red); }
+    .stat.yellow .sv { color:var(--yellow); }
+
+    .tag {
+      display:inline-block; font-size:0.65rem; padding:0.1rem 0.4rem;
+      background:var(--surface2); border:1px solid var(--border); border-radius:6px;
+      color:var(--text-dim); margin:0.1rem;
+    }
+
+    .empty {
+      text-align:center; padding:2.5rem 1rem; color:var(--text-dim);
+    }
+    .empty .ei { font-size:1.8rem; margin-bottom:0.5rem; }
+
+    .report-md {
+      background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; padding:1.25rem;
+      font-family:var(--mono); font-size:0.75rem; line-height:1.75;
+      white-space:pre-wrap; word-break:break-word; overflow:auto;
+      max-height:400px;
+    }
+    .report-dl-row {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:0.65rem;
+    }
+    .report-dl-row a {
+      font-size:0.78rem; color:var(--accent); text-decoration:none;
+    }
+    .report-dl-row a:hover { text-decoration:underline; }
+
+    .spinner {
+      display:inline-block; width:14px; height:14px;
+      border:2px solid var(--border); border-top-color:var(--accent);
+      border-radius:50%; animation:spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Notification toast ─────────────────── */
+    #toast {
+      position:fixed; bottom:1.5rem; right:1.5rem;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:8px; padding:0.75rem 1.1rem;
+      font-size:0.82rem; color:var(--text); z-index:9999;
+      box-shadow:0 4px 24px rgba(0,0,0,0.4);
+      transform:translateY(80px); opacity:0; transition:all 0.28s;
+      max-width:320px;
+    }
+    #toast.show { transform:translateY(0); opacity:1; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Header ─────────────────────────────── -->
+  <header>
+    <span class="logo">🤖 QA-Web-Agent</span>
+    <span class="badge">LangGraph + GPT-4o</span>
+    <span class="badge v2">V2 · HITL</span>
+    <div class="header-right">
+      <span id="global-status" class="status-pill status-idle">
+        <span class="dot"></span>Idle
+      </span>
+    </div>
+  </header>
+
+  <!-- ── Input Panel ────────────────────────── -->
+  <div class="card">
+    <div class="card-title">New Analysis</div>
+    <div class="form-grid">
+      <div>
+        <label for="url">Target URL</label>
+        <input type="url" id="url" placeholder="https://your-app.com" />
+      </div>
+      <div>
+        <label>Run Mode</label>
+        <div class="mode-toggle">
+          <input type="radio" name="mode" id="mode-auto" value="auto" checked />
+          <label for="mode-auto">⚡ Auto</label>
+          <input type="radio" name="mode" id="mode-manual" value="manual" />
+          <label for="mode-manual">🧑 Manual Review</label>
+        </div>
+        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.4rem;" id="mode-hint">
+          Auto: runs the full pipeline unattended.
+        </div>
+      </div>
+      <div class="form-full">
+        <label>PRD Source</label>
+        <div class="mode-toggle">
+          <input type="radio" name="prd-source" id="prd-src-reference" value="reference" checked />
+          <label for="prd-src-reference">🔍 Generate from Reference</label>
+          <input type="radio" name="prd-source" id="prd-src-own" value="own" />
+          <label for="prd-src-own">✍ Own PRD</label>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem;" id="prd-src-hint">
+          AI will research similar sites and auto-generate the PRD — Phase 0 runs normally.
+        </div>
+      </div>
+      <div class="form-full" id="prd-input-row" style="display:none;">
+        <label for="prd">Product Requirements Document (PRD)</label>
+        <textarea id="prd" placeholder="Paste your PRD here…&#10;&#10;Example:&#10;- User can sign up with email/password&#10;- Dashboard shows analytics&#10;- Settings page for profile editing"></textarea>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:1rem;">
+      <button class="btn btn-primary" id="btn-run" onclick="runAnalysis()">▶ Run Analysis</button>
+      <button class="btn btn-ghost" onclick="clearAll()">✕ Clear</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadExample()" title="Load example data">📋 Load Example</button>
+    </div>
+  </div>
+
+  <!-- ── Pipeline Progress ──────────────────── -->
+  <div class="pipeline" id="pipeline" style="display:none;">
+    <div class="phase-step" id="ps-0">
+      <div class="ps-icon">📝</div>
+      <div class="ps-name">Phase 0<br><span style="font-weight:400">PRD Maker</span></div>
+      <div class="ps-status" id="ps-0-status">Waiting</div>
+      <div class="ps-detail" id="ps-0-detail"></div>
+    </div>
+    <div class="phase-step" id="ps-1">
+      <div class="ps-icon">🕷️</div>
+      <div class="ps-name">Phase 1<br><span style="font-weight:400">Architect</span></div>
+      <div class="ps-status" id="ps-1-status">Waiting</div>
+      <div class="ps-detail" id="ps-1-detail"></div>
+    </div>
+    <div class="phase-step" id="ps-2">
+      <div class="ps-icon">📋</div>
+      <div class="ps-name">Phase 2<br><span style="font-weight:400">Strategist</span></div>
+      <div class="ps-status" id="ps-2-status">Waiting</div>
+      <div class="ps-detail" id="ps-2-detail"></div>
+    </div>
+    <div class="phase-step" id="ps-3">
+      <div class="ps-icon">💻</div>
+      <div class="ps-name">Phase 3<br><span style="font-weight:400">SDET</span></div>
+      <div class="ps-status" id="ps-3-status">Waiting</div>
+      <div class="ps-detail" id="ps-3-detail"></div>
+    </div>
+    <div class="phase-step" id="ps-4">
+      <div class="ps-icon">🚀</div>
+      <div class="ps-name">Phase 4<br><span style="font-weight:400">Executor</span></div>
+      <div class="ps-status" id="ps-4-status">Waiting</div>
+      <div class="ps-detail" id="ps-4-detail"></div>
+    </div>
+    <div class="phase-step" id="ps-5">
+      <div class="ps-icon">📊</div>
+      <div class="ps-name">Phase 5<br><span style="font-weight:400">Reporter</span></div>
+      <div class="ps-status" id="ps-5-status">Waiting</div>
+      <div class="ps-detail" id="ps-5-detail"></div>
+    </div>
+  </div>
+
+  <!-- ── Live Activity Feed ─────────────────── -->
+  <div id="activity-feed"></div>
+
+  <!-- ── Live Generated Files ───────────────── -->
+  <div class="card" id="live-files-card" style="display:none;">
+    <div class="card-title">📂 Generated Files <span id="live-files-count" style="color:var(--green);">0</span></div>
+    <div class="gen-files-grid" id="live-files-grid"></div>
+    <div id="lint-status-banner"></div>
+  </div>
+
+  <!-- ── HITL Banner ────────────────────────── -->
+  <div id="hitl-banner">
+    <div class="hitl-banner-header">
+      <div>
+        <div class="hitl-banner-title">⏸ Human Review Required</div>
+        <div class="hitl-banner-sub" id="hitl-banner-sub">Reviewing phase output…</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-warning btn-sm" onclick="autoApproveAll()">⚡ Auto-Approve All</button>
+      </div>
+    </div>
+    <div id="hitl-content"></div>
+  </div>
+
+  <!-- ── Output Panel ───────────────────────── -->
+  <div class="output-panel" id="output-panel" style="display:none;">
+    <div class="tabs" id="tabs-bar">
+      <div class="tab active" data-tab="live-log" onclick="switchTab(this,'live-log')">
+        Live Log <span class="cnt" id="cnt-log">0</span>
+      </div>
+      <div class="tab" data-tab="pipeline-view" onclick="switchTab(this,'pipeline-view')">
+        🧭 Pipeline
+      </div>
+      <div class="tab" data-tab="knowledge-graph" onclick="switchTab(this,'knowledge-graph')">
+        🧠 Knowledge Graph
+      </div>
+      <div class="tab" data-tab="test-cases" onclick="switchTab(this,'test-cases')">
+        📋 Test Cases <span class="cnt" id="cnt-tc">0</span>
+      </div>
+      <div class="tab" data-tab="cypress" onclick="switchTab(this,'cypress')">
+        🌲 Cypress Files
+      </div>
+      <div class="tab" data-tab="execution" onclick="switchTab(this,'execution')">
+        🚀 Execution <span class="cnt" id="cnt-err">0</span>
+      </div>
+      <div class="tab" data-tab="reports" onclick="switchTab(this,'reports')">
+        📄 Reports
+      </div>
+      <div class="tab" data-tab="raw-json" onclick="switchTab(this,'raw-json')">
+        { } Raw
+      </div>
+    </div>
+
+    <!-- Live Log -->
+    <div class="tab-content active" id="tab-live-log">
+      <div class="log-stream" id="log-stream"></div>
+      <div class="empty" id="log-empty"><div class="ei">📡</div><div>Waiting for events…</div></div>
+    </div>
+
+    <!-- Pipeline View -->
+    <div class="tab-content" id="tab-pipeline-view">
+      <div id="pipeline-detail">
+        <div class="empty"><div class="ei">🧭</div><div>Pipeline details appear here during the run</div></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Graph -->
+    <div class="tab-content" id="tab-knowledge-graph">
+      <div id="kg-content">
+        <div class="empty"><div class="ei">🧠</div><div>Appears after the Architect cluster runs</div></div>
+      </div>
+    </div>
+
+    <!-- Test Cases -->
+    <div class="tab-content" id="tab-test-cases">
+      <div id="tc-content">
+        <div class="empty"><div class="ei">📋</div><div>Appears after the Strategist cluster runs</div></div>
+      </div>
+    </div>
+
+    <!-- Cypress Files -->
+    <div class="tab-content" id="tab-cypress">
+      <div id="cy-content">
+        <div class="empty"><div class="ei">🌲</div><div>Appears after the SDET cluster runs</div></div>
+      </div>
+    </div>
+
+    <!-- Execution -->
+    <div class="tab-content" id="tab-execution">
+      <div id="exec-content">
+        <div class="empty"><div class="ei">🚀</div><div>Appears after Cypress runs</div></div>
+      </div>
+    </div>
+
+    <!-- Reports -->
+    <div class="tab-content" id="tab-reports">
+      <div id="reports-content">
+        <div class="empty" id="reports-empty">
+          <div class="ei">📄</div>
+          <div>Reports appear after the Reporter cluster finishes</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Raw JSON -->
+    <div class="tab-content" id="tab-raw-json">
+      <pre class="code" id="raw-json">Waiting for results…</pre>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════════════
+let threadId      = null;
+let logCount      = 0;
+let isManualMode  = false;
+let currentGate   = null;   // 1-4 when paused
+let lastState     = null;   // full graph state snapshot
+let autoApproveRemaining = false;
+let liveFiles     = [];     // tracks generated files in real-time
+let lintRetries   = 0;
+let prdSource     = 'reference'; // 'own' | 'reference'
+
+// Phase node name groupings
+const PHASE_NODES = {
+  0: ['research_references','draft_prd'],
+  1: ['crawl_target','analyze_dom','map_to_prd'],
+  2: ['generate_happy_paths','generate_edge_cases','merge_strategies'],
+  3: ['generate_page_objects','generate_specs','syntax_linter'],
+  4: ['pre_flight_check','run_cypress','classify_errors','heal_tests'],
+  5: ['aggregate_metrics','draft_bug_tickets','assemble_markdown'],
+};
+const GATE_NODES = {
+  phase_0_gate: 0, phase_1_gate: 1, phase_2_gate: 2, phase_3_gate: 3, phase_4_gate: 4
+};
+const PHASE_NAMES = {0:'PRD Maker',1:'Architect',2:'Strategist',3:'SDET',4:'Executor',5:'Reporter'};
+
+// ═══════════════════════════════════════════════════════════════
+// UI Helpers
+// ═══════════════════════════════════════════════════════════════
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s ?? '');
+  return d.innerHTML;
+}
+
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = type === 'error' ? 'var(--red)'
+    : type === 'success' ? 'var(--green)'
+    : type === 'warn' ? 'var(--yellow)' : 'var(--border)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+function setGlobalStatus(cls, text) {
+  const el = document.getElementById('global-status');
+  el.className = 'status-pill ' + cls;
+  el.innerHTML = `<span class="dot"></span>${text}`;
+}
+
+function switchTab(el, id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+function addLog(node, msg, cls='') {
+  document.getElementById('log-empty').style.display = 'none';
+  const s = document.getElementById('log-stream');
+  const now = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const e = document.createElement('div');
+  e.className = 'log-entry ' + cls;
+  e.innerHTML = `<span class="lt">${now}</span><span class="ln">${esc(node)}</span><span class="lm">${esc(msg)}</span>`;
+  s.appendChild(e);
+  s.scrollTop = s.scrollHeight;
+  document.getElementById('cnt-log').textContent = ++logCount;
+}
+
+function setPipelinePhase(phase, stateClass, statusText) {
+  const el = document.getElementById('ps-' + phase);
+  if (!el) return;
+  el.className = 'phase-step ' + stateClass;
+  document.getElementById('ps-' + phase + '-status').textContent = statusText;
+}
+
+function setPipelineDetail(phase, detailText) {
+  const el = document.getElementById('ps-' + phase + '-detail');
+  if (el) el.textContent = detailText;
+}
+
+// ── Activity feed ──────────────────────────────
+function addActivity(icon, msg, cls='') {
+  const feed = document.getElementById('activity-feed');
+  feed.style.display = 'block';
+  const now = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const item = document.createElement('div');
+  item.className = 'activity-item ' + cls;
+  item.innerHTML = `<span class="ai-icon">${icon}</span><span class="ai-time">${now}</span><span class="ai-msg">${esc(msg)}</span>`;
+  feed.appendChild(item);
+  feed.scrollTop = feed.scrollHeight;
+  // Keep max 20 items
+  while (feed.children.length > 20) feed.removeChild(feed.firstChild);
+}
+
+// ── Live file cards ────────────────────────────
+function addLiveFile(filename, kind) {
+  const card = document.getElementById('live-files-card');
+  card.style.display = 'block';
+  const grid = document.getElementById('live-files-grid');
+  const icon = kind === 'page_objects' ? '📐' : kind === 'specs' ? '🧪' : '📄';
+  const shortName = filename.split('/').pop();
+  // Avoid duplicates
+  if (liveFiles.includes(shortName)) return;
+  liveFiles.push(shortName);
+  document.getElementById('live-files-count').textContent = liveFiles.length;
+  const el = document.createElement('div');
+  el.className = 'gen-file-card gf-new';
+  el.id = 'gf-' + shortName.replace(/[^a-zA-Z0-9]/g,'_');
+  el.innerHTML = `<span class="gf-icon">${icon}</span><span class="gf-name">${esc(shortName)}</span>`;
+  grid.appendChild(el);
+}
+
+function updateLintBanner(passed, specErrors, pomErrors, retryCount) {
+  const banner = document.getElementById('lint-status-banner');
+  lintRetries = retryCount;
+  if (passed) {
+    banner.innerHTML = `<div class="lint-banner lint-pass">✅ All files passed syntax checks<span class="lb-detail">${liveFiles.length} files · ${retryCount} retries</span></div>`;
+    // Mark all file cards green
+    document.querySelectorAll('.gen-file-card').forEach(c => { c.classList.remove('gf-lint-err','gf-new'); c.classList.add('gf-lint-ok'); });
+  } else {
+    const total = (specErrors?.length||0) + (pomErrors?.length||0);
+    const errList = [...(pomErrors||[]),...(specErrors||[])].slice(0,5).map(e => `<div style="font-size:0.7rem;font-family:var(--mono);padding:0.1rem 0;">${esc(e)}</div>`).join('');
+    banner.innerHTML = `<div class="lint-banner lint-fail">❌ ${total} lint error(s) — retry #${retryCount}<span class="lb-detail">POM: ${(pomErrors||[]).length} · Spec: ${(specErrors||[]).length}</span></div>${errList}`;
+    // Mark error files
+    for (const err of [...(pomErrors||[]),...(specErrors||[])]) {
+      const fname = err.split(':')[0].trim();
+      const cardId = 'gf-' + fname.replace(/[^a-zA-Z0-9]/g,'_');
+      const card = document.getElementById(cardId);
+      if (card) { card.classList.remove('gf-new','gf-lint-ok'); card.classList.add('gf-lint-err'); }
+    }
+  }
+}
+
+document.querySelectorAll('input[name=mode]').forEach(r => {
+  r.addEventListener('change', () => {
+    isManualMode = document.getElementById('mode-manual').checked;
+    document.getElementById('mode-hint').textContent = isManualMode
+      ? 'Manual: graph pauses at each phase gate for your review.'
+      : 'Auto: runs the full pipeline unattended.';
+  });
+});
+
+document.querySelectorAll('input[name="prd-source"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const isOwn = document.getElementById('prd-src-own').checked;
+    document.getElementById('prd-input-row').style.display = isOwn ? 'block' : 'none';
+    document.getElementById('prd-src-hint').textContent = isOwn
+      ? 'Phase 0 (reference research) will be skipped — your PRD is used directly.'
+      : 'AI will research similar sites and auto-generate the PRD — Phase 0 runs normally.';
+  });
+});
+
+function markAllPhasesDone() {
+  [0,1,2,3,4,5].forEach(p => {
+    if (p === 0 && prdSource === 'own') return;
+    setPipelinePhase(p, 'ps-done', 'Done ✓');
+  });
+}
+
+function loadExample() {
+  document.getElementById('url').value = 'https://mishankhatri.com.np';
+  document.getElementById('prd-src-own').checked = true;
+  document.getElementById('prd-input-row').style.display = 'block';
+  document.getElementById('prd-src-hint').textContent = 'Phase 0 (reference research) will be skipped — your PRD is used directly.';
+  document.getElementById('prd').value =
+`- Portfolio site showcasing developer profile
+- Resume download link (PDF)
+- Experience section with job history
+- Education section
+- Projects gallery with descriptions
+- Contact links: GitHub, LinkedIn, Email
+- Responsive design for mobile
+- Accessible navigation with aria-labels`;
+}
+
+function clearAll() {
+  threadId = null; logCount = 0; currentGate = null; lastState = null;
+  autoApproveRemaining = false; liveFiles = []; lintRetries = 0;
+  prdSource = 'reference';
+  document.getElementById('url').value = '';
+  document.getElementById('prd').value = '';
+  document.getElementById('prd-src-reference').checked = true;
+  document.getElementById('prd-input-row').style.display = 'none';
+  document.getElementById('prd-src-hint').textContent = 'AI will research similar sites and auto-generate the PRD — Phase 0 runs normally.';
+  document.getElementById('output-panel').style.display = 'none';
+  document.getElementById('pipeline').style.display = 'none';
+  document.getElementById('hitl-banner').style.display = 'none';
+  document.getElementById('activity-feed').style.display = 'none';
+  document.getElementById('activity-feed').innerHTML = '';
+  document.getElementById('live-files-card').style.display = 'none';
+  document.getElementById('live-files-grid').innerHTML = '';
+  document.getElementById('live-files-count').textContent = '0';
+  document.getElementById('lint-status-banner').innerHTML = '';
+  document.getElementById('log-stream').innerHTML = '';
+  document.getElementById('log-empty').style.display = 'block';
+  ['cnt-log','cnt-tc','cnt-err'].forEach(id => { document.getElementById(id).textContent='0'; });
+  [0,1,2,3,4,5].forEach(p => { setPipelinePhase(p,'','Waiting'); setPipelineDetail(p,''); });
+  setGlobalStatus('status-idle','Idle');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Render Tabs
+// ═══════════════════════════════════════════════════════════════
+function renderKnowledgeGraph(kg) {
+  if (!kg) return;
+  let h = '';
+  if (kg.app_title) h += `<div class="section-title">Application</div><div class="data-card"><div class="dc-title">${esc(kg.app_title)}</div><div class="dc-sub">${esc((kg.tech_signals||[]).join(' · '))}</div></div>`;
+  if (kg.metrics) {
+    const m = kg.metrics;
+    h += `<div class="section-title">Metrics</div>
+    <div class="stat-row">
+      <div class="stat green"><div class="sv">${m.total_passed??0}</div><div class="sl">Passed</div></div>
+      <div class="stat red"><div class="sv">${m.total_failed??0}</div><div class="sl">Failed</div></div>
+      <div class="stat"><div class="sv">${m.pass_rate_pct??0}%</div><div class="sl">Pass Rate</div></div>
+      <div class="stat yellow"><div class="sv">${m.app_bug_count??0}</div><div class="sl">App Bugs</div></div>
+      <div class="stat"><div class="sv">${m.heal_attempts??0}</div><div class="sl">Heal Attempts</div></div>
+    </div>`;
+  }
+  if (kg.implemented_features?.length) {
+    h += `<div class="section-title">✅ Implemented (${kg.implemented_features.length})</div>`;
+    kg.implemented_features.forEach(f => {
+      h += `<div class="data-card"><div class="dc-title">✅ ${esc(f.feature)}</div><div class="dc-sub">${esc(f.evidence||'')}</div></div>`;
+    });
+  }
+  if (kg.missing_features?.length) {
+    h += `<div class="section-title">❌ Missing Features (${kg.missing_features.length})</div>`;
+    kg.missing_features.forEach(f => {
+      h += `<div class="data-card" style="border-color:var(--red-dim)"><div class="dc-title">❌ ${esc(f.feature)}</div><div class="dc-sub">${esc(f.prd_reference||'')}</div></div>`;
+    });
+  }
+  if (kg.pov_reports) {
+    ['stakeholder','developer','user'].forEach(k => {
+      if (kg.pov_reports[k]) h += `<div class="section-title">${k.charAt(0).toUpperCase()+k.slice(1)} Perspective</div><pre class="code">${esc(kg.pov_reports[k])}</pre>`;
+    });
+  }
+  if (kg.jira_tickets?.length) {
+    h += `<div class="section-title">🎫 Jira Tickets (${kg.jira_tickets.length})</div>`;
+    kg.jira_tickets.forEach(t => {
+      const sev = (t.severity||'Medium').toLowerCase();
+      h += `<div class="data-card"><div class="dc-title"><span class="sev-badge sev-${sev}">${esc(t.severity||'Medium')}</span> ${esc(t.title)}</div><div class="dc-sub" style="margin-top:0.4rem;">${esc(t.description||'')}</div>`;
+      if (t.steps_to_reproduce?.length) {
+        h += `<div style="margin-top:0.4rem; font-size:0.78rem; color:var(--text-dim);">`;
+        t.steps_to_reproduce.forEach((s,i) => { h += `<div>${i+1}. ${esc(s)}</div>`; });
+        h += '</div>';
+      }
+      h += `<div style="margin-top:0.5rem; font-size:0.78rem;">→ Expected: ${esc(t.expected||'')} &nbsp;|&nbsp; Actual: ${esc(t.actual||'')}</div></div>`;
+    });
+  }
+  h += `<div class="section-title">Full JSON</div><pre class="code">${esc(JSON.stringify(kg,null,2))}</pre>`;
+  document.getElementById('kg-content').innerHTML = h;
+}
+
+function renderTestCases(cases) {
+  if (!cases?.length) return;
+  document.getElementById('cnt-tc').textContent = cases.length;
+  let h = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;"><span style="font-weight:600;">${cases.length} Test Cases</span></div>`;
+  cases.forEach(tc => {
+    const sev = (tc.severity||tc.priority||'medium').toLowerCase();
+    h += `<div class="data-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+        <code style="font-size:0.75rem;color:var(--accent);">${esc(tc.id||'')}</code>
+        <span class="sev-badge sev-${sev}">${esc(sev)}</span>
+      </div>
+      <div class="dc-title">${esc(tc.feature||'')} — ${esc(tc.scenario||'')}</div>`;
+    if (tc.tags?.length) h += `<div style="margin-top:0.4rem;">${tc.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`;
+    if (tc.steps?.length) {
+      h += `<details style="margin-top:0.5rem;"><summary style="cursor:pointer;font-size:0.78rem;color:var(--text-dim);">${tc.steps.length} steps</summary>`;
+      tc.steps.forEach(s => {
+        h += `<div style="font-size:0.78rem;padding:0.2rem 0;color:var(--text-dim);">
+          <span style="color:var(--accent);">Step ${s.step_number||''}:</span> ${esc(s.action||'')}
+          <span style="color:var(--green);">→ ${esc(s.expected_result||'')}</span></div>`;
+      });
+      h += '</details>';
+    }
+    h += '</div>';
+  });
+  document.getElementById('tc-content').innerHTML = h;
+}
+
+function renderCypressFiles(paths) {
+  if (!paths?.length) return;
+  const specs = paths.filter(p=>p.endsWith('.cy.js'));
+  const pages = paths.filter(p=>p.includes('support/pages'));
+  const reports = paths.filter(p=>p.endsWith('.md'));
+  let h = '';
+  if (specs.length) {
+    h += `<div class="section-title">🧪 Spec Files (${specs.length})</div>`;
+    specs.forEach(p => { h += `<div class="data-card"><div class="dc-title">🧪 ${esc(p.split('/').pop())}</div><div class="dc-sub" style="font-family:var(--mono);font-size:0.72rem;">${esc(p)}</div></div>`; });
+  }
+  if (pages.length) {
+    h += `<div class="section-title">📐 Page Objects (${pages.length})</div>`;
+    pages.forEach(p => { h += `<div class="data-card"><div class="dc-title">📐 ${esc(p.split('/').pop())}</div><div class="dc-sub" style="font-family:var(--mono);font-size:0.72rem;">${esc(p)}</div></div>`; });
+  }
+  if (reports.length) {
+    h += `<div class="section-title">📄 Reports</div>`;
+    reports.forEach(p => {
+      const fn = p.split('/').pop();
+      h += `<div class="data-card" style="display:flex;justify-content:space-between;align-items:center;">
+        <div><div class="dc-title">📄 ${esc(fn)}</div><div class="dc-sub" style="font-family:var(--mono);font-size:0.72rem;">${esc(p)}</div></div>
+        <a href="/reports/${esc(fn)}" download="${esc(fn)}" class="btn btn-ghost btn-sm">⬇ Download</a></div>`;
+    });
+  }
+  document.getElementById('cy-content').innerHTML = h || '<div class="empty"><div class="ei">🌲</div><div>No files yet</div></div>';
+}
+
+function renderExecution(history, classified) {
+  if (!history?.length) return;
+  let errCount = 0;
+  let h = '';
+  const appBugs = (classified||[]).filter(e=>e.type==='app_bug');
+  const codeErrs = (classified||[]).filter(e=>e.type==='test_code_error');
+
+  if (classified?.length) {
+    errCount = classified.length;
+    document.getElementById('cnt-err').textContent = errCount;
+    document.getElementById('cnt-err').className = errCount > 0 ? 'cnt red' : 'cnt green';
+    h += `<div class="section-title">🔍 Classified Errors (${classified.length})</div>`;
+    h += `<div class="stat-row">
+      <div class="stat red"><div class="sv">${appBugs.length}</div><div class="sl">App Bugs</div></div>
+      <div class="stat yellow"><div class="sv">${codeErrs.length}</div><div class="sl">Test-Code Errors</div></div>
+    </div>`;
+    if (appBugs.length) {
+      appBugs.forEach(e => {
+        h += `<div class="data-card" style="border-color:var(--red)"><div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.4rem;"><span class="sev-badge sev-bug">App Bug</span></div><div class="dc-sub" style="font-family:var(--mono);font-size:0.75rem;">${esc(e.message)}</div></div>`;
+      });
+    }
+    if (codeErrs.length) {
+      codeErrs.forEach(e => {
+        h += `<div class="data-card" style="border-color:var(--yellow)"><div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.4rem;"><span class="sev-badge sev-test">Test Error</span></div><div class="dc-sub" style="font-family:var(--mono);font-size:0.75rem;">${esc(e.message)}</div></div>`;
+      });
+    }
+  }
+
+  h += `<div class="section-title">🚀 Execution Runs (${history.length})</div>`;
+  history.forEach((run, i) => {
+    const isPass = run.status === 'pass';
+    h += `<div class="data-card" style="border-color:${isPass?'var(--green)':'var(--red)'}">
+      <div class="dc-title">${isPass?'✅':'❌'} Attempt ${run.attempt||i+1} — ${(run.status||'').toUpperCase()}</div>
+      <div class="stat-row" style="margin-top:0.5rem;">
+        <div class="stat green"><div class="sv">${run.passed||0}</div><div class="sl">Passed</div></div>
+        <div class="stat red"><div class="sv">${run.failed||0}</div><div class="sl">Failed</div></div>
+        <div class="stat"><div class="sv">${run.total_tests||0}</div><div class="sl">Total</div></div>
+        <div class="stat"><div class="sv">${run.exit_code}</div><div class="sl">Exit</div></div>
+      </div>`;
+    if (run.failure_messages?.length) {
+      h += `<div style="margin-top:0.5rem;border-top:1px solid var(--border-dim);padding-top:0.5rem;">`;
+      run.failure_messages.slice(0,6).forEach(m => {
+        h += `<div style="font-family:var(--mono);font-size:0.72rem;color:var(--red);padding:0.15rem 0;">${esc(m)}</div>`;
+      });
+      h += '</div>';
+    }
+    if (run.stdout_tail) {
+      h += `<details style="margin-top:0.5rem;"><summary style="cursor:pointer;font-size:0.75rem;color:var(--text-dim);">Raw stdout</summary><pre class="code" style="max-height:180px;">${esc(run.stdout_tail)}</pre></details>`;
+    }
+    h += '</div>';
+  });
+  document.getElementById('exec-content').innerHTML = h;
+}
+
+async function renderReports(reportPaths) {
+  const paths = reportPaths.filter(p=>p.endsWith('.md'));
+  if (!paths.length) return;
+  let h = '';
+  for (const fullPath of paths) {
+    const fn = fullPath.split('/').pop();
+    const icon = fn.includes('bug') ? '🐛' : '📋';
+    const title = fn.includes('bug') ? 'Bug Report' : fn.includes('test_cases') ? 'Test Cases Report' : fn;
+    try {
+      const r = await fetch('/reports/'+fn);
+      if (!r.ok) continue;
+      const md = await r.text();
+      h += `<div style="margin-bottom:1.5rem;">
+        <div class="report-dl-row">
+          <span style="font-weight:600;">${icon} ${esc(title)}</span>
+          <a href="/reports/${esc(fn)}" download="${esc(fn)}" class="btn btn-ghost btn-sm">⬇ Download .md</a>
+        </div>
+        <div class="report-md">${esc(md)}</div>
+      </div>`;
+    } catch(e) { console.error(e); }
+  }
+  if (h) {
+    document.getElementById('reports-empty').style.display = 'none';
+    document.getElementById('reports-content').innerHTML = h;
+  }
+}
+
+function updateAllTabs(state) {
+  if (!state) return;
+  const r = state.values || state;
+  document.getElementById('raw-json').textContent = JSON.stringify(state, null, 2);
+  if (r.technical_overview) renderKnowledgeGraph(r.technical_overview);
+  if (r.test_cases?.length)  renderTestCases(r.test_cases);
+  if (r.cypress_file_paths?.length) renderCypressFiles(r.cypress_file_paths);
+  if (r.execution_history?.length)  renderExecution(r.execution_history, r.classified_errors);
+  const reportPaths = (r.cypress_file_paths||[]).filter(p=>p.endsWith('.md'));
+  if (reportPaths.length) renderReports(reportPaths);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Pipeline Progress Tracker
+// ═══════════════════════════════════════════════════════════════
+const completedPhases = new Set();
+const activePhase = { v: null };
+
+function trackNodeProgress(nodeName, label) {
+  for (const [phase, nodes] of Object.entries(PHASE_NODES)) {
+    const p = parseInt(phase);
+    if (nodes.includes(nodeName)) {
+      if (activePhase.v !== p) {
+        // Mark previous phase as done
+        if (activePhase.v !== null && activePhase.v < p) {
+          completedPhases.add(activePhase.v);
+          setPipelinePhase(activePhase.v, 'ps-done', 'Done ✓');
+          setPipelineDetail(activePhase.v, '');
+        }
+        activePhase.v = p;
+        [0,1,2,3,4,5].forEach(x => {
+          if (completedPhases.has(x)) setPipelinePhase(x,'ps-done','Done ✓');
+          else if (x === p) setPipelinePhase(x,'ps-active','Running…');
+        });
+      }
+      // Show sub-step in the phase detail
+      setPipelineDetail(p, label || nodeName);
+      return;
+    }
+  }
+  if (Object.keys(GATE_NODES).includes(nodeName)) {
+    const phase = GATE_NODES[nodeName];
+    completedPhases.add(phase);
+    setPipelinePhase(phase,'ps-gate','⏸ Review');
+    setPipelineDetail(phase, '');
+  }
+}
+
+function markPhaseComplete(phase) {
+  completedPhases.add(phase);
+  setPipelinePhase(phase,'ps-done','Done ✓');
+  setPipelineDetail(phase, '');
+}
+
+// Derive pipeline phase state from the graph state values.
+// Used by pollUntilDone() since background runs have no SSE node events.
+function syncPipelineFromState(vals, nextNodes) {
+  if (!vals) return;
+  const done = {
+    0: !!(vals.prd_site_type || vals.phase_0_approved),
+    1: !!(vals.technical_overview),
+    2: !!(vals.test_cases && vals.test_cases.length > 0),
+    3: !!(vals.cypress_file_paths && vals.cypress_file_paths.length > 0),
+    4: !!(vals.execution_history && vals.execution_history.length > 0),
+    5: nextNodes.length === 0 && !!(vals.execution_history && vals.execution_history.length > 0),
+  };
+
+  // Determine the active phase from next nodes
+  let activeP = null;
+  for (const node of (nextNodes || [])) {
+    for (const [phase, nodes] of Object.entries(PHASE_NODES)) {
+      if (nodes.includes(node)) { activeP = parseInt(phase); break; }
+    }
+    if (activeP !== null) break;
+  }
+
+  [0,1,2,3,4,5].forEach(p => {
+    if (p === 0 && prdSource === 'own') return; // keep "Skipped" state
+    if (done[p]) {
+      completedPhases.add(p);
+      setPipelinePhase(p, 'ps-done', 'Done ✓');
+      setPipelineDetail(p, '');
+    } else if (p === activeP) {
+      setPipelinePhase(p, 'ps-active', 'Running…');
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HITL Gate Management
+// ═══════════════════════════════════════════════════════════════
+function showHITLBanner(phase, stateValues) {
+  currentGate = phase;
+  const banner = document.getElementById('hitl-banner');
+  banner.style.display = 'block';
+  banner.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  document.getElementById('hitl-banner-sub').textContent = phase === 0
+    ? `Phase 0 (PRD Maker) completed — review the generated PRD, edit if needed, then approve or reject.`
+    : `Phase ${phase} (${PHASE_NAMES[phase]}) completed — review and approve or reject below.`;
+
+  const content = document.getElementById('hitl-content');
+  let h = '';
+
+  // Phase-specific review content
+  if (phase === 0) {
+    const prd = stateValues.project_description || '';
+    const siteType = stateValues.prd_site_type || 'unknown';
+    const refs = stateValues.prd_references || [];
+    h += `<div class="hitl-section">
+      <div class="hitl-section-title">📝 Generated PRD — Review &amp; Edit</div>
+      <div class="data-card">
+        <div class="dc-title">Detected Site Category: <span style="color:var(--accent)">${esc(siteType)}</span></div>
+        <div class="dc-sub">${refs.length} reference site(s) analysed</div>
+      </div>
+      <div style="margin-top:0.75rem;">
+        <label style="font-size:0.8rem;color:var(--text-dim);">PRD content (edit freely before approving):</label>
+        <textarea id="prd-edit-hitl" style="min-height:220px;width:100%;margin-top:0.4rem;font-family:var(--mono);font-size:0.78rem;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius);padding:0.6rem;color:var(--text);resize:vertical;">${esc(prd)}</textarea>
+      </div>
+    </div>`;
+  }
+
+  if (phase === 1) {
+    const kg = stateValues.technical_overview || {};
+    h += `<div class="hitl-section">
+      <div class="hitl-section-title">🧠 Knowledge Graph Summary</div>
+      <div class="data-card">
+        <div class="dc-title">${esc(kg.app_title||'App')}</div>
+        <div class="dc-sub">${esc((kg.tech_signals||[]).join(' · '))}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem;">
+        <div class="data-card" style="border-color:var(--green-dim)">
+          <div class="dc-title">✅ Implemented: ${(kg.implemented_features||[]).length}</div>
+          ${(kg.implemented_features||[]).slice(0,3).map(f=>`<div class="dc-sub">• ${esc(f.feature)}</div>`).join('')}
+        </div>
+        <div class="data-card" style="border-color:var(--red-dim)">
+          <div class="dc-title">❌ Missing: ${(kg.missing_features||[]).length}</div>
+          ${(kg.missing_features||[]).slice(0,3).map(f=>`<div class="dc-sub">• ${esc(f.feature)}</div>`).join('')}
+        </div>
+      </div>
+      <pre class="code" style="margin-top:0.5rem;max-height:180px;">${esc(JSON.stringify(kg,null,2))}</pre>
+    </div>`;
+  }
+
+  if (phase === 2) {
+    const cases = stateValues.test_cases || [];
+    h += `<div class="hitl-section">
+      <div class="hitl-section-title">📋 Test Cases (${cases.length}) — Edit inline or paste JSON below</div>
+      <div id="tc-cards-hitl">`;
+    cases.forEach((tc, i) => {
+      const sev = (tc.severity||'medium').toLowerCase();
+      h += `<div class="tc-edit-card" id="tc-card-${i}">
+        <div class="tc-edit-header">
+          <code style="font-size:0.75rem;color:var(--accent);">${esc(tc.id||'')}</code>
+          <button class="tc-del-btn" onclick="deleteTCCard(${i})" title="Remove this test case">✕</button>
+        </div>
+        <div class="tc-field-row">
+          <div><label>Feature</label><input type="text" data-idx="${i}" data-field="feature" value="${esc(tc.feature||'')}" oninput="updateTCField(this)" /></div>
+          <div><label>Severity</label>
+            <select data-idx="${i}" data-field="severity" onchange="updateTCField(this)">
+              ${['critical','high','medium','low'].map(s=>`<option ${sev===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="tc-field-full">
+          <label>Scenario</label>
+          <input type="text" data-idx="${i}" data-field="scenario" value="${esc(tc.scenario||'')}" oninput="updateTCField(this)" style="width:100%;" />
+        </div>
+      </div>`;
+    });
+    h += `</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:0.5rem;" onclick="addTCCard()">+ Add Test Case</button>
+      <div style="margin-top:0.75rem;">
+        <label>Or paste full JSON to replace all test cases:</label>
+        <textarea class="sm" id="tc-json-override" placeholder='[{"id":"TC-001","feature":"...","scenario":"...","severity":"high","steps":[],"tags":[]}]'></textarea>
+      </div>
+    </div>`;
+  }
+
+  if (phase === 3) {
+    const paths = stateValues.cypress_file_paths || [];
+    const specs = paths.filter(p=>p.endsWith('.cy.js'));
+    const poms = paths.filter(p=>p.includes('support/pages'));
+    const lint = stateValues.lint_errors || [];
+    const pomLint = stateValues.pom_lint_errors || [];
+    h += `<div class="hitl-section">
+      <div class="hitl-section-title">🌲 SDET Output</div>
+      <div class="stat-row">
+        <div class="stat"><div class="sv">${poms.length}</div><div class="sl">POM Files</div></div>
+        <div class="stat"><div class="sv">${specs.length}</div><div class="sl">Spec Files</div></div>
+        <div class="stat ${(lint.length+pomLint.length)?'red':'green'}"><div class="sv">${lint.length+pomLint.length}</div><div class="sl">Lint Issues</div></div>
+        <div class="stat"><div class="sv">${stateValues.lint_retry_count||0}</div><div class="sl">Lint Retries</div></div>
+      </div>
+      ${pomLint.length?`<div class="data-card" style="border-color:var(--red)"><div class="dc-title" style="color:var(--red);">❌ POM Errors</div>${pomLint.slice(0,6).map(l=>`<div class="dc-sub" style="font-family:var(--mono);font-size:0.72rem;">${esc(l)}</div>`).join('')}</div>`:''}
+      ${lint.length?`<div class="data-card" style="border-color:var(--yellow)"><div class="dc-title" style="color:var(--yellow);">⚠ Spec Lint Issues</div>${lint.slice(0,6).map(l=>`<div class="dc-sub" style="font-family:var(--mono);font-size:0.72rem;">${esc(l)}</div>`).join('')}</div>`:''}
+      ${specs.map(p=>`<div class="data-card"><div class="dc-title">🧪 ${esc(p.split('/').pop())}</div></div>`).join('')}
+      ${poms.map(p=>`<div class="data-card"><div class="dc-title">📐 ${esc(p.split('/').pop())}</div></div>`).join('')}
+    </div>`;
+  }
+
+  if (phase === 4) {
+    const history = stateValues.execution_history || [];
+    const classified = stateValues.classified_errors || [];
+    const appBugs = classified.filter(e=>e.type==='app_bug');
+    const codeErrs = classified.filter(e=>e.type==='test_code_error');
+    const lastRun = history[history.length-1] || {};
+    h += `<div class="hitl-section">
+      <div class="hitl-section-title">🚀 Execution Summary</div>
+      <div class="stat-row">
+        <div class="stat green"><div class="sv">${lastRun.passed||0}</div><div class="sl">Passed</div></div>
+        <div class="stat red"><div class="sv">${lastRun.failed||0}</div><div class="sl">Failed</div></div>
+        <div class="stat yellow"><div class="sv">${appBugs.length}</div><div class="sl">App Bugs</div></div>
+        <div class="stat"><div class="sv">${codeErrs.length}</div><div class="sl">Code Errors</div></div>
+        <div class="stat"><div class="sv">${stateValues.heal_retry_count||0}</div><div class="sl">Heals</div></div>
+      </div>
+      ${appBugs.map(e=>`<div class="data-card" style="border-color:var(--red)"><span class="sev-badge sev-bug">App Bug</span> <span style="font-family:var(--mono);font-size:0.75rem;">${esc(e.message)}</span></div>`).join('')}
+      ${codeErrs.map(e=>`<div class="data-card" style="border-color:var(--yellow)"><span class="sev-badge sev-test">Test Error</span> <span style="font-family:var(--mono);font-size:0.75rem;">${esc(e.message)}</span></div>`).join('')}
+    </div>`;
+  }
+
+  // Feedback + action buttons
+  h += `<div class="hitl-actions">
+    <div class="hitl-feedback">
+      <label>Feedback / Notes (optional — appended to state for LLM context on rejection):</label>
+      <textarea class="sm" id="hitl-feedback-input" placeholder="e.g. Edge cases are too shallow, add more negative tests…"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-success" onclick="submitGate(${phase}, true)">✅ Approve — Continue to Phase ${phase+1}</button>
+      <button class="btn btn-danger"  onclick="submitGate(${phase}, false)">❌ Reject — Regenerate Phase ${phase}</button>
+      <button class="btn btn-ghost btn-sm" onclick="switchTabById('tab-knowledge-graph')">🔍 Full Details →</button>
+    </div>
+  </div>`;
+
+  content.innerHTML = h;
+  setPipelinePhase(phase, 'ps-gate', '⏸ Review');
+
+  // Switch to pipeline-view tab to highlight the gate
+  const pipelineTab = document.querySelector('[data-tab="pipeline-view"]');
+  if (pipelineTab) updatePipelineDetail_gate(phase, stateValues);
+
+  // Also jump to test-cases tab if phase 2
+  if (phase === 2) switchTabById('tab-test-cases');
+}
+
+function switchTabById(tabId) {
+  const tabEl = document.querySelector(`[data-tab="${tabId.replace('tab-','')}"]`);
+  if (tabEl) {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    tabEl.classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+  }
+}
+
+function hideHITLBanner() {
+  document.getElementById('hitl-banner').style.display = 'none';
+  currentGate = null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Test Case Editing (Phase 2 Gate)
+// ═══════════════════════════════════════════════════════════════
+let editedCases = [];
+
+function updateTCField(el) {
+  const i = parseInt(el.dataset.idx);
+  const field = el.dataset.field;
+  if (!editedCases[i]) editedCases[i] = {};
+  editedCases[i][field] = el.value;
+}
+
+function deleteTCCard(i) {
+  const card = document.getElementById('tc-card-'+i);
+  if (card) { card.style.opacity='0.3'; card.style.pointerEvents='none'; }
+  if (!editedCases[i]) editedCases[i] = {};
+  editedCases[i]._deleted = true;
+}
+
+function addTCCard() {
+  const newId = 'TC-NEW-' + Date.now();
+  const container = document.getElementById('tc-cards-hitl');
+  const i = editedCases.length;
+  editedCases.push({ id:newId, feature:'', scenario:'', severity:'medium', steps:[], tags:[] });
+  const div = document.createElement('div');
+  div.className = 'tc-edit-card';
+  div.id = 'tc-card-'+i;
+  div.innerHTML = `
+    <div class="tc-edit-header">
+      <code style="font-size:0.75rem;color:var(--accent);">${newId}</code>
+      <button class="tc-del-btn" onclick="deleteTCCard(${i})">✕</button>
+    </div>
+    <div class="tc-field-row">
+      <div><label>Feature</label><input type="text" data-idx="${i}" data-field="feature" value="" oninput="updateTCField(this)" /></div>
+      <div><label>Severity</label>
+        <select data-idx="${i}" data-field="severity" onchange="updateTCField(this)">
+          ${['critical','high','medium','low'].map(s=>`<option>${s}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="tc-field-full">
+      <label>Scenario</label>
+      <input type="text" data-idx="${i}" data-field="scenario" value="" oninput="updateTCField(this)" style="width:100%;" />
+    </div>`;
+  container.appendChild(div);
+}
+
+function collectEditedTestCases() {
+  // Priority: if JSON override textarea has content, use that
+  const override = (document.getElementById('tc-json-override')?.value||'').trim();
+  if (override) {
+    try { return JSON.parse(override); } catch(e) { toast('Invalid JSON in override field', 'error'); return null; }
+  }
+
+  // Otherwise merge card edits onto original cases
+  const origCases = lastState?.values?.test_cases || lastState?.test_cases || [];
+  const merged = origCases
+    .map((tc,i) => {
+      if (editedCases[i]?._deleted) return null;
+      return { ...tc, ...(editedCases[i]||{}) };
+    })
+    .filter(Boolean);
+
+  // Add newly added cases
+  const newCases = editedCases.slice(origCases.length).filter(c=>!c._deleted);
+  return [...merged, ...newCases];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Gate Submit
+// ═══════════════════════════════════════════════════════════════
+async function submitGate(phase, approved) {
+  if (!threadId) { toast('No active thread', 'error'); return; }
+
+  const feedback = document.getElementById('hitl-feedback-input')?.value?.trim() || '';
+  const body = { phase, approved, feedback };
+
+  // If phase 0, collect edited PRD
+  if (phase === 0) {
+    const editedPrd = document.getElementById('prd-edit-hitl')?.value?.trim();
+    if (editedPrd) {
+      body.edited_state_payload = { project_description: editedPrd };
+    }
+  }
+
+  // If phase 2, collect edited test cases
+  if (phase === 2) {
+    const edited = collectEditedTestCases();
+    if (edited === null) return; // parse error
+    if (edited.length !== (lastState?.values?.test_cases||[]).length || feedback) {
+      body.edited_state_payload = { test_cases: edited };
+    }
+  }
+
+  // Show spinner
+  const approveBtn = document.querySelector('.hitl-actions .btn-success');
+  const rejectBtn  = document.querySelector('.hitl-actions .btn-danger');
+  if (approveBtn) { approveBtn.disabled = true; approveBtn.innerHTML = '<span class="spinner"></span> Processing…'; }
+  if (rejectBtn)  { rejectBtn.disabled  = true; }
+  setGlobalStatus('status-running', `Phase ${phase} ${approved?'approved':'rejected'}…`);
+
+  addLog(`phase_${phase}_gate`, approved ? '✅ Approved by human' : '❌ Rejected — regenerating', approved?'ldone':'lerr');
+  addActivity(approved ? '✅' : '❌', `Phase ${phase} (${PHASE_NAMES[phase]}) ${approved?'approved':'rejected'}`, approved?'ai-done':'ai-error');
+
+  try {
+    const resp = await fetch(`/runs/${threadId}/resume`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+
+    // Mark phase as done
+    markPhaseComplete(phase);
+    editedCases = [];
+
+    if (data.next_nodes?.length) {
+      // Another gate is next
+      const nextGateName = data.next_nodes.find(n => n in GATE_NODES);
+      if (nextGateName) {
+        // Fetch full state to populate next gate review
+        await fetchStateAndShowGate(nextGateName);
+      } else {
+        setGlobalStatus('status-running', 'Continuing…');
+        hideHITLBanner();
+        // Poll until next gate or completion
+        pollUntilDone();
+      }
+    } else if (data.status === 'completed') {
+      hideHITLBanner();
+      setGlobalStatus('status-done', 'Completed ✓');
+      markAllPhasesDone();
+      await fetchAndRefresh();
+      toast('Analysis complete!', 'success');
+    } else {
+      setGlobalStatus('status-running', 'Running…');
+      hideHITLBanner();
+      pollUntilDone();
+    }
+  } catch(e) {
+    toast('Resume failed: ' + e.message, 'error');
+    if (approveBtn) { approveBtn.disabled=false; approveBtn.innerHTML='✅ Approve'; }
+    if (rejectBtn)  { rejectBtn.disabled=false; }
+  }
+}
+
+async function autoApproveAll() {
+  if (!currentGate || !threadId) return;
+  autoApproveRemaining = true;
+  toast('Auto-approving remaining gates…', 'warn');
+  await submitGate(currentGate, true);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Fetch & Poll
+// ═══════════════════════════════════════════════════════════════
+async function fetchStateAndShowGate(gateNodeName) {
+  const phase = GATE_NODES[gateNodeName];
+  try {
+    const resp = await fetch(`/runs/${threadId}/state`);
+    const data = await resp.json();
+    lastState = data;
+    updateAllTabs(data);
+    const vals = data.values || {};
+    // Phase 0 (PRD Maker) is always mandatory — never auto-approve
+    if (autoApproveRemaining && phase !== 0) {
+      await submitGate(phase, true);
+    } else {
+      showHITLBanner(phase, vals);
+      setGlobalStatus('status-paused', `Phase ${phase} Gate`);
+      toast(`Phase ${phase} (${PHASE_NAMES[phase]}) ready for review`, 'warn');
+    }
+  } catch(e) {
+    toast('Failed to load state: '+e.message, 'error');
+  }
+}
+
+async function fetchAndRefresh() {
+  if (!threadId) return;
+  try {
+    const resp = await fetch(`/report/${threadId}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    lastState = data;
+    updateAllTabs(data);
+  } catch(e) { console.error(e); }
+}
+
+let pollTimer = null;
+function pollUntilDone(interval=2500) {
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = setTimeout(async () => {
+    if (!threadId) return;
+    try {
+      const resp = await fetch(`/runs/${threadId}/state`);
+      const data = await resp.json();
+      lastState = data;
+      updateAllTabs(data);
+      syncPipelineFromState(data.values, data.next || []);
+      const next = data.next || [];
+      const gateNode = next.find(n => n in GATE_NODES);
+      if (gateNode) {
+        if (autoApproveRemaining) {
+          await submitGate(GATE_NODES[gateNode], true);
+        } else {
+          await fetchStateAndShowGate(gateNode);
+        }
+      } else if (next.length === 0) {
+        // Done
+        setGlobalStatus('status-done','Completed ✓');
+        markAllPhasesDone();
+        await fetchAndRefresh();
+        toast('Analysis complete!','success');
+      } else {
+        // Still running
+        setGlobalStatus('status-running','Running…');
+        pollUntilDone(interval);
+      }
+    } catch(e) {
+      console.error('poll error:', e);
+      pollUntilDone(interval); // reschedule even on transient fetch/parse errors
+    }
+  }, interval);
+}
+
+function updatePipelineDetail_gate(phase, vals) {
+  let h = `<div style="margin-bottom:1rem;"><strong>Currently paused at Phase ${phase} Gate (${PHASE_NAMES[phase]})</strong></div>`;
+  [0,1,2,3,4,5].forEach(p => {
+    const done = completedPhases.has(p);
+    const current = p === phase;
+    const waiting = !done && !current;
+    const icon = done ? '✅' : current ? '⏸' : '⏳';
+    const cls = done ? 'var(--green)' : current ? 'var(--purple)' : 'var(--text-muted)';
+    h += `<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem;border-bottom:1px solid var(--border-dim);">
+      <span style="font-size:1.1rem;">${icon}</span>
+      <span style="color:${cls};font-weight:600;">Phase ${p}: ${PHASE_NAMES[p]}</span>
+      <span style="color:var(--text-muted);font-size:0.78rem;">${done?'Complete':current?'Waiting for review':'Pending'}</span>
+    </div>`;
+  });
+  document.getElementById('pipeline-detail').innerHTML = h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Main: Run Analysis (with rich SSE event handling)
+// ═══════════════════════════════════════════════════════════════
+async function runAnalysis() {
+  let url = document.getElementById('url').value.trim();
+  const prd = document.getElementById('prd').value.trim();
+  isManualMode = document.getElementById('mode-manual').checked;
+  prdSource = document.querySelector('input[name="prd-source"]:checked')?.value || 'reference';
+
+  if (!url) { toast('Please enter a URL', 'error'); return; }
+  if (prdSource === 'own' && !prd) { toast('Please paste your PRD or switch to "Generate from Reference"', 'error'); return; }
+  // Normalize: add https:// if no scheme provided
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+  // Reset
+  threadId = null; logCount = 0; currentGate = null; lastState = null;
+  autoApproveRemaining = false; liveFiles = []; lintRetries = 0;
+  document.getElementById('output-panel').style.display = 'block';
+  document.getElementById('pipeline').style.display = 'flex';
+  document.getElementById('hitl-banner').style.display = 'none';
+  document.getElementById('activity-feed').style.display = 'none';
+  document.getElementById('activity-feed').innerHTML = '';
+  document.getElementById('live-files-card').style.display = 'none';
+  document.getElementById('live-files-grid').innerHTML = '';
+  document.getElementById('live-files-count').textContent = '0';
+  document.getElementById('lint-status-banner').innerHTML = '';
+  document.getElementById('log-stream').innerHTML = '';
+  document.getElementById('log-empty').style.display = 'none';
+  document.getElementById('reports-empty').style.display = 'block';
+  document.getElementById('reports-content').innerHTML = '<div class="empty" id="reports-empty"><div class="ei">📄</div><div>Reports appear after the Reporter cluster finishes</div></div>';
+  ['cnt-log','cnt-tc','cnt-err'].forEach(id => { document.getElementById(id).textContent='0'; });
+  document.getElementById('cnt-err').className = 'cnt';
+  [0,1,2,3,4,5].forEach(p => { setPipelinePhase(p,'','Waiting'); setPipelineDetail(p,''); });
+  if (prdSource === 'own') {
+    setPipelinePhase(0, 'ps-skipped', 'Skipped');
+    setPipelineDetail(0, 'Own PRD provided');
+  }
+  completedPhases.clear(); activePhase.v = null;
+  document.getElementById('btn-run').disabled = true;
+  setGlobalStatus('status-running','Starting…');
+
+  const completedNodes = new Set();
+
+  try {
+    const resp = await fetch('/analyze/stream', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ url, prd_text: prd, run_mode: isManualMode ? 'manual' : 'auto', prd_source: prdSource }),
+    });
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream:true});
+      const parts = buf.split('\n\n');
+      buf = parts.pop() || '';
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue;
+        let evt;
+        try { evt = JSON.parse(part.slice(6)); } catch { continue; }
+
+        if (evt.type === 'init') {
+          threadId = evt.thread_id;
+          addLog('system', `▶ Thread: ${evt.thread_id}`);
+          addActivity('🚀', `Pipeline started — thread ${evt.thread_id.substring(0,12)}`);
+          setGlobalStatus('status-running', evt.thread_id.substring(0,14)+'…');
+
+        } else if (evt.type === 'node_start') {
+          // Structured node start event
+          const label = evt.label || evt.node;
+          addLog(evt.node, `▶ ${label}`, '');
+          addActivity('⚡', `${label}`, '');
+          trackNodeProgress(evt.node, label);
+          setGlobalStatus('status-running', label);
+
+        } else if (evt.type === 'node_end') {
+          // Structured node end event
+          const label = evt.label || evt.node;
+          completedNodes.add(evt.node);
+          addLog(evt.node, `✓ ${label} completed`, 'ldone');
+
+          // Show test case count inline
+          if (evt.test_case_count) {
+            addActivity('📋', `${evt.test_case_count} test cases generated`, 'ai-file');
+          }
+
+          // Show execution results inline
+          if (evt.execution) {
+            const ex = evt.execution;
+            const icon = ex.status === 'pass' ? '✅' : '❌';
+            addActivity(icon, `Cypress: ${ex.passed} passed, ${ex.failed} failed (${ex.total} total)`, ex.status==='pass'?'ai-done':'ai-error');
+          }
+
+          // Update tabs on important nodes
+          const importantNodes = ['draft_prd','map_to_prd','merge_strategies','generate_page_objects','generate_specs','syntax_linter','run_cypress','classify_errors','assemble_markdown'];
+          if (importantNodes.includes(evt.node)) {
+            setTimeout(() => fetchAndRefresh(), 400);
+          }
+
+          // Check if a phase just completed (last node in phase)
+          for (const [phase, nodes] of Object.entries(PHASE_NODES)) {
+            const p = parseInt(phase);
+            const lastNode = nodes[nodes.length - 1];
+            if (evt.node === lastNode && !Object.keys(GATE_NODES).some(g => GATE_NODES[g] === p && !completedNodes.has(g))) {
+              // Don't auto-mark complete if gate is expected
+            }
+          }
+
+        } else if (evt.type === 'prd_ready') {
+          // PRD was auto-generated — populate the PRD textarea if user left it blank
+          const prdEl = document.getElementById('prd');
+          if (prdEl && !prdEl.value.trim()) {
+            prdEl.value = evt.project_description || '';
+          }
+          addActivity('📝', `PRD generated (${esc(evt.site_type||'unknown')}) — ${(evt.project_description||'').length} chars`, 'ai-done');
+          addLog('draft_prd', `✅ PRD ready — site type: ${esc(evt.site_type||'unknown')}`, 'ldone');
+
+        } else if (evt.type === 'files_written') {
+          // Files were generated — show them live
+          const kind = evt.kind || 'specs';
+          const kindLabel = kind === 'page_objects' ? 'Page Object' : 'Spec';
+          for (const fp of (evt.files || [])) {
+            const fname = fp.split('/').pop();
+            addLiveFile(fp, kind);
+            addActivity('📄', `${kindLabel}: ${fname}`, 'ai-file');
+          }
+          addLog(evt.node, `Wrote ${evt.files.length} ${kindLabel} file(s)`, 'ldone');
+
+        } else if (evt.type === 'lint_result') {
+          // Lint result — update the banner
+          const specErrs = evt.spec_errors || [];
+          const pomErrs = evt.pom_errors || [];
+          updateLintBanner(evt.passed, specErrs, pomErrs, evt.retry_count || 0);
+          if (evt.passed) {
+            addLog('syntax_linter', `✅ All files passed lint`, 'ldone');
+            addActivity('✅', 'Lint passed — all files are clean', 'ai-done');
+          } else {
+            const total = specErrs.length + pomErrs.length;
+            addLog('syntax_linter', `❌ ${total} error(s) — retry #${evt.retry_count}`, 'lerr');
+            addActivity('🔄', `Lint failed (${total} errors) — retrying #${evt.retry_count}`, 'ai-lint');
+            if (pomErrs.length) {
+              addActivity('📐', `POM errors: ${pomErrs.length} — regenerating POMs`, 'ai-error');
+            }
+            if (specErrs.length) {
+              addActivity('🧪', `Spec errors: ${specErrs.length} — regenerating specs`, 'ai-error');
+            }
+          }
+
+        } else if (evt.type === 'state_snapshot') {
+          // Full state push from server — update all tabs
+          lastState = { values: evt.values, next: evt.next };
+          updateAllTabs(lastState);
+          // Check if gate is next
+          if (evt.next?.length) {
+            const gateNode = evt.next.find(n => n in GATE_NODES);
+            if (gateNode && (isManualMode || gateNode === 'phase_0_gate') && !autoApproveRemaining) {
+              addActivity('⏸', `Phase ${GATE_NODES[gateNode]} gate reached`, 'ai-lint');
+              // For Phase 0 gate (always mandatory) show the banner immediately from the snapshot values
+              if (gateNode === 'phase_0_gate' && evt.final) {
+                await fetchStateAndShowGate(gateNode);
+              }
+            }
+          }
+
+        } else if (evt.type === 'error') {
+          addLog('error', evt.detail, 'lerr');
+          addActivity('❌', `Error: ${(evt.detail||'').substring(0,100)}`, 'ai-error');
+          setGlobalStatus('status-error', 'Error');
+
+        } else if (evt.type === 'done') {
+          addLog('system', `Stream ended (thread: ${evt.thread_id})`, 'ldone');
+          // Check if paused at a gate or truly done
+          if (threadId) {
+            setTimeout(async () => {
+              const r = await fetch(`/runs/${threadId}/state`).then(r=>r.json()).catch(()=>null);
+              if (!r) return;
+              lastState = r;
+              updateAllTabs(r);
+              syncPipelineFromState(r.values, r.next || []);
+              const next = r.next || [];
+              const gateNode = next.find(n => n in GATE_NODES);
+              if (gateNode && (isManualMode || gateNode === 'phase_0_gate')) {
+                await fetchStateAndShowGate(gateNode);
+              } else if (next.length === 0) {
+                setGlobalStatus('status-done','Completed ✓');
+                markAllPhasesDone();
+                addActivity('🏁', 'Pipeline completed successfully!', 'ai-done');
+                toast('Analysis complete!','success');
+              }
+            }, 600);
+          }
+
+        } else {
+          // Legacy / generic events — still log them
+          const name = evt.name || '';
+          const kind = (evt.type||'').replace('on_chain_','');
+          const isGateNode = Object.keys(GATE_NODES).includes(name);
+
+          if (isGateNode) {
+            const phase = GATE_NODES[name];
+            addLog(name, `⏸ Gate reached — Phase ${phase} (${PHASE_NAMES[phase]})`, 'lgate');
+          } else if (name) {
+            addLog(name, `[${kind}] ${(evt.data||'').substring(0,280)}`);
+          }
+
+          trackNodeProgress(name, '');
+
+          if (kind === 'end' && !completedNodes.has(name)) {
+            completedNodes.add(name);
+            if (Object.values(PHASE_NODES).flat().includes(name) || isGateNode) {
+              setTimeout(() => fetchAndRefresh(), 400);
+            }
+          }
+        }
+      }
+    }
+  } catch(err) {
+    addLog('error', err.message, 'lerr');
+    addActivity('💥', `Connection failed: ${err.message}`, 'ai-error');
+    setGlobalStatus('status-error', 'Connection failed');
+  }
+
+  document.getElementById('btn-run').disabled = false;
+}
+</script>
+</body>
+</html>
