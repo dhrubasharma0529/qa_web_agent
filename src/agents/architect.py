@@ -11,6 +11,7 @@ a dict of the three async node functions, ready to be registered in the graph.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 
@@ -86,7 +87,8 @@ def _build_architect_nodes(
         url: str = state["url"].strip()
         logger.info("Architect / crawl_target: crawling %s", url)
         snapshot = await browser.crawl_page(url)
-        return {"raw_dom": snapshot.html}
+        elements = [dataclasses.asdict(e) for e in snapshot.elements]
+        return {"raw_dom": snapshot.html, "page_elements": elements}
 
     @traceable(name="analyze_dom", run_type="chain")
     async def analyze_dom(state: QAState) -> dict:

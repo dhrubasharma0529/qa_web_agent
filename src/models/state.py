@@ -35,6 +35,7 @@ class QAState(TypedDict, total=False):
 
     # ── Phase 1: Contextual Intelligence ────────────────────
     raw_dom: Optional[str]
+    page_elements: Optional[list[dict]]  # [{index, tag, selector, text, aria_label, ...}] — live extraction
     page_analysis: Optional[str]      # unified DOM summary from DOMProcessor
     technical_overview: Optional[dict]  # product knowledge graph
 

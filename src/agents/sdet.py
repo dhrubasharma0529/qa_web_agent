@@ -38,6 +38,11 @@ def _get_llm() -> ChatOpenAI:
 # ── Prompts ─────────────────────────────────────────────────
 
 _SHARED_RULES = (
+    "## ⚠️  RULE 0 — SELECTOR INTEGRITY (HIGHEST PRIORITY)\n"
+    "Every CSS selector you write MUST appear verbatim in the **VERIFIED SELECTORS** table\n"
+    "provided in the user message. **NEVER invent, guess, or assume a selector.**\n"
+    "If no matching selector exists for a test step, write:\n"
+    "  `it.skip('element not found in live DOM')`\n\n"
     "## CRITICAL Rules\n"
     "1. Use **CommonJS** module syntax everywhere:\n"
     "   - Page Objects: `class Foo {{ ... }}  module.exports = new Foo();`\n"
@@ -167,6 +172,7 @@ _PAGE_OBJECT_PROMPT = ChatPromptTemplate.from_messages(
         ),
         (
             "human",
+            "{verified_selectors_block}"
             "## Target URL\n{url}\n\n"
             "## Test Cases\n```json\n{test_cases}\n```\n\n"
             "## Actual Page DOM (use ONLY selectors present here)\n"
@@ -196,6 +202,7 @@ _SPEC_GEN_PROMPT = ChatPromptTemplate.from_messages(
         ),
         (
             "human",
+            "{verified_selectors_block}"
             "## Target URL\n{url}\n\n"
             "## Test Cases\n```json\n{test_cases}\n```\n\n"
             "## Generated Page Objects (use ONLY these methods — do not invent others)\n"
@@ -214,6 +221,32 @@ _SPEC_GEN_PROMPT = ChatPromptTemplate.from_messages(
 
 
 # ── Helpers ──────────────────────────────────────────────────
+
+def _extract_json(raw: str) -> dict:
+    """Parse JSON from an LLM response that may include markdown fences or preamble text."""
+    cleaned = raw.strip()
+    # Try each segment separated by code fences
+    if "```" in cleaned:
+        for segment in cleaned.split("```"):
+            segment = segment.strip()
+            if segment.startswith("json"):
+                segment = segment[4:].strip()
+            if segment.startswith("{"):
+                try:
+                    return json.loads(segment)
+                except json.JSONDecodeError:
+                    pass
+    # Find outermost { … } block (handles preamble text)
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end > start:
+        try:
+            return json.loads(cleaned[start : end + 1])
+        except json.JSONDecodeError:
+            pass
+    # Last resort
+    return json.loads(cleaned)
+
 
 def _write_file(directory: Path, filename: str, code: str) -> str:
     directory.mkdir(parents=True, exist_ok=True)
@@ -440,6 +473,40 @@ def _cypress_api_context_block(state: QAState) -> str:
     return "\n".join(lines)
 
 
+def _verified_selectors_block(state: QAState) -> str:
+    """Build a markdown table of every selector extracted live from the page.
+
+    The SDET prompts inject this so the LLM has a hard, searchable list of real
+    selectors and cannot hallucinate ones that don't exist in the DOM.
+    """
+    elements = state.get("page_elements") or []
+    if not elements:
+        return ""
+
+    lines = [
+        "## ⚠️  VERIFIED SELECTORS — Extracted live from the target page",
+        "RULE 0 applies: use ONLY selectors from this table. "
+        "If a needed selector is absent, write `it.skip('element not found in live DOM')`.",
+        "",
+        "| # | Tag | Best Selector | Visible Text |",
+        "|---|-----|---------------|--------------|",
+    ]
+    count = 0
+    for el in elements:
+        selector = el.get("selector")
+        if not selector:
+            continue  # skip elements _bestSelector couldn't produce a unique selector for
+        tag = el.get("tag", "")
+        text = (el.get("text") or "")[:60].replace("|", "\\|").replace("\n", " ").strip()
+        lines.append(f"| {el.get('index', '')} | `{tag}` | `{selector}` | {text} |")
+        count += 1
+        if count >= 80:
+            lines.append("| … | … | (table truncated — see Raw DOM for remainder) | … |")
+            break
+    lines.append("")
+    return "\n".join(lines)
+
+
 # ── Node functions ───────────────────────────────────────────
 
 
@@ -462,6 +529,7 @@ async def generate_page_objects(state: QAState) -> dict:
             "test_cases": json.dumps(test_cases, indent=2),
             "page_analysis": page_analysis,
             "raw_dom": raw_dom[:6000] if raw_dom else "(not available)",
+            "verified_selectors_block": _verified_selectors_block(state),
             "pom_lint_feedback": _pom_lint_feedback_block(state),
             "cypress_api_context_block": _cypress_api_context_block(state),
         }
@@ -469,11 +537,8 @@ async def generate_page_objects(state: QAState) -> dict:
 
     raw: str = result.content  # type: ignore[union-attr]
     try:
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0]
-        generated = json.loads(cleaned)
-    except (json.JSONDecodeError, IndexError):
+        generated = _extract_json(raw)
+    except (json.JSONDecodeError, ValueError):
         logger.error("SDET / generate_page_objects: failed to parse response")
         return {"errors": [f"Page object gen parse error: {raw[:500]}"]}
 
@@ -515,6 +580,7 @@ async def generate_specs(state: QAState) -> dict:
             "pom_contents": pom_contents,
             "page_analysis": page_analysis,
             "raw_dom": raw_dom[:6000] if raw_dom else "(not available)",
+            "verified_selectors_block": _verified_selectors_block(state),
             "human_feedback_block": _human_feedback_block(state),
             "lint_feedback_block": _spec_lint_feedback_block(state),
             "self_heal_context": _self_heal_block(state),
@@ -524,11 +590,8 @@ async def generate_specs(state: QAState) -> dict:
 
     raw: str = result.content  # type: ignore[union-attr]
     try:
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0]
-        generated = json.loads(cleaned)
-    except (json.JSONDecodeError, IndexError):
+        generated = _extract_json(raw)
+    except (json.JSONDecodeError, ValueError):
         logger.error("SDET / generate_specs: failed to parse response")
         return {"errors": [f"Spec gen parse error: {raw[:500]}"]}
 
