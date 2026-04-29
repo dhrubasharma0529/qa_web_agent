@@ -4,7 +4,7 @@ module.exports = defineConfig({
   e2e: {
     // baseUrl is injected at runtime via --config baseUrl=<url> in run_cypress.
     // This fallback is only used when running Cypress manually outside the agent.
-    baseUrl: "http://localhost:3000",
+    baseUrl: "http://localhost:8000",
 
     // Where specs live
     specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",

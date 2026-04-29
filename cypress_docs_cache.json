@@ -1,7 +1,7 @@
 {
-  "fetched_at": "2026-04-26T06:52:53.007117+00:00",
+  "fetched_at": "2026-04-28T18:25:42.848203+00:00",
   "context": {
-    "fetched_at": "2026-04-26",
+    "fetched_at": "2026-04-29",
     "pages_fetched": [
       "click",
       "focus",
@@ -19,20 +19,25 @@
       {
         "command": "cy.click()",
         "change_type": "changed",
-        "detail": "New options for .click() include position (valid positions: topLeft, top, topRight, left, center, right, bottomLeft, bottom, bottomRight) and coordinates (x, y) for precise clicking."
+        "detail": "New options added: position (String) for specifying where to click, x (Number) and y (Number) for explicit coordinates."
       },
       {
         "command": "cy.visit()",
         "change_type": "changed",
-        "detail": "New options for .visit() include method (GET or POST), body for POST requests, headers for HTTP headers, qs for query parameters, auth for Basic Authorization, failOnStatusCode (default true), retryOnStatusCodeFailure (default false), and retryOnNetworkFailure (default true)."
+        "detail": "New options added: method (GET or POST), body (optional for POST), headers (for initial request), qs (query parameters), auth (Basic Authorization), failOnStatusCode (default true), retryOnStatusCodeFailure (default false), retryOnNetworkFailure (default true)."
       },
       {
         "command": "cy.get()",
         "change_type": "changed",
-        "detail": "New options for .get() include includeShadowDom to traverse shadow DOM boundaries."
+        "detail": "New options added: includeShadowDom (to include elements within shadow DOM)."
+      },
+      {
+        "command": "cy.visit()",
+        "change_type": "caution",
+        "detail": "Best practice recommends setting a baseUrl when using cy.visit()."
       }
     ],
-    "rules_addendum": "Best practice: Set a baseUrl when using cy.visit().",
+    "rules_addendum": "",
     "has_updates": true
   }
 }

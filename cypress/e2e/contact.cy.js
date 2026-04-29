@@ -1,12 +1,8 @@
-const contactPage = require('../support/pages/contactPage');
+const homePage = require('../support/pages/homePage');
 
-describe('Contact Page', () => {
-  it('User navigates to the Contact page and submits the contact form', () => {
-    contactPage.visit();
-    contactPage.getNameInput().type('John Doe');
-    contactPage.getEmailInput().type('john.doe@example.com');
-    contactPage.getMessageTextarea().type('Hello!');
-    contactPage.getSendMessageBtn().click();
-    cy.get('form').should('not.exist');
+describe('Contact Links', () => {
+  it('User accesses contact links', () => {
+    homePage.visit();
+    homePage.accessContactLinks();
   });
 });

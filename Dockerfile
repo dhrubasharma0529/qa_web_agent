@@ -6,6 +6,8 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         nodejs npm curl gnupg \
+        libgtk-3-0 libnotify-dev libgconf-2-4 libnss3 libxss1 \
+        libasound2 libxtst6 xauth xvfb \
         # Playwright system dependencies
         libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
         libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 \
@@ -20,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN playwright install chromium --with-deps
 
 # Install Node.js dependencies (Cypress + eslint)
-COPY package.json .
+COPY package.json . package-lock.json* ./
 RUN npm install
 
 # Copy application source

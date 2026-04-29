@@ -61,6 +61,15 @@ _CLASSIFY_PROMPT = ChatPromptTemplate.from_messages(
             "  → `test_code_error`. URL-based 404 checks are wrong; the correct check is page content.\n"
             "- If the test expects `h2:contains('Thank You')` or similar success text on a contact form\n"
             "  but the DOM shows no such text → `test_code_error`. The test guessed the wrong text.\n"
+            "- If the test asserts a SPECIFIC literal word/phrase like `cy.contains('Error')`,\n"
+            "  `cy.contains('Not Found')`, `cy.contains('Success')`, `cy.contains('Welcome')`\n"
+            "  after a navigation/click that lands on a page whose actual text is unknown\n"
+            "  → `test_code_error`. The test guessed an arbitrary keyword the page may not use.\n"
+            "  Real error/success pages use varied wording (`Error`, `404`, `Not Found`,\n"
+            "  `Page doesn't exist`, `Sorry`, etc.) — a literal-string assertion is fragile.\n"
+            "  The fix is a regex like `cy.contains(/error|not found|404|sorry/i)`, which\n"
+            "  the healer can apply. Do NOT classify these as `app_bug` just because the\n"
+            "  expected text was missing — the test's expectation was the bug.\n"
             "- If the test expects `[class*='error']` for form validation but the DOM shows no error\n"
             "  class elements → `test_code_error`. The site uses HTML5 or custom validation differently.\n"
             "- If the test expects `aria-label` on nav links that have visible text → `test_code_error`.\n"
@@ -75,10 +84,14 @@ _CLASSIFY_PROMPT = ChatPromptTemplate.from_messages(
             "- If the test visits a cross-origin URL without `cy.origin()` → `test_code_error`.\n"
             "- Only use `app_bug` when the feature SHOULD exist based on the page's clear purpose\n"
             "  (e.g. a checkout button missing from a shopping cart page).\n\n"
+            "Each failure message is a multi-line block, often prefixed with "
+            "`[spec: <filename>]`. Preserve the WHOLE block verbatim in `message` "
+            "(do NOT shorten it to a single line) — downstream healing relies on "
+            "the element HTML and reason text inside the block.\n\n"
             "Output strict JSON:\n"
             "{{\n"
             '  "classifications": [\n'
-            '    {{"type": "test_code_error"|"app_bug", "message": "original error line"}}\n'
+            '    {{"type": "test_code_error"|"app_bug", "message": "<full original block, verbatim>"}}\n'
             "  ]\n"
             "}}",
         ),
@@ -100,13 +113,18 @@ _HEAL_PROMPT = ChatPromptTemplate.from_messages(
             "Use CommonJS syntax only. Do NOT add `import`/`export` statements.\n"
             "Every `it()` block must keep at least one `should()` or `expect()` assertion.\n\n"
             "## Fixing process — always follow this order:\n"
-            "1. Read the error message to identify WHICH category it falls into (table below).\n"
-            "2. Read the DOM snapshot to understand what elements actually exist.\n"
-            "3. Determine the page/form type from the DOM:\n"
+            "1. Each error message starts with `[spec: <filename>]`. Only edit the spec\n"
+            "   files that have errors; leave the others untouched (do NOT include them\n"
+            "   in `fixed_specs`). Read the FULL multi-line block — the lines AFTER the\n"
+            "   `CypressError:` / `AssertionError:` header contain the actual element\n"
+            "   HTML and the reason (e.g. 'is not visible because parent has display:none').\n"
+            "2. Identify WHICH category the error falls into (table below).\n"
+            "3. Read the DOM snapshot to understand what elements actually exist.\n"
+            "4. Determine the page/form type from the DOM:\n"
             "   - username + password inputs → LOGIN form\n"
             "   - message textarea → CONTACT/FEEDBACK form\n"
             "   - product listings, cart → E-COMMERCE flow\n"
-            "4. Apply ONLY the fix for that category — do not apply unrelated changes.\n\n"
+            "5. Apply ONLY the fix for that category — do not apply unrelated changes.\n\n"
             "## Error → Fix Reference Table\n\n"
             "### A. Multi-element action\n"
             "Error: `cy.click() can only be called on a single element … contained N elements`\n"
@@ -139,14 +157,58 @@ _HEAL_PROMPT = ChatPromptTemplate.from_messages(
             "  Each element must focus and assert itself — focusing A does NOT make B focused.\n"
             "Fix for `.or()`: Use combined selector `cy.get('A, B').should('have.length.gte', 1)`\n"
             "  or chain with `.and()`: `cy.get('a').should('be.visible').and('have.attr', 'href')`\n\n"
-            "### E. Element not interactable (not visible, covered, animating, off-screen)\n"
-            "Error: `cy.click() failed because the element cannot be interacted with`\n"
-            "Error: `element is not visible`\n"
-            "Error: `element is currently animating`\n"
-            "Fix — try in this order:\n"
-            "  1. Scroll first: `cy.get('selector').scrollIntoView().click()`\n"
-            "  2. Wait for animation: `.should('not.have.class', 'animating')` before acting\n"
-            "  3. Last resort: `cy.get('selector').click({{ force: true }})`\n\n"
+            "### E. Element not interactable (not visible / covered / animating / off-screen)\n"
+            "Match ANY of these wordings as Category E — they all mean the same thing:\n"
+            "- `cy.click() failed because the element cannot be interacted with`\n"
+            "- `cy.click() failed because this element ... is being covered by another element`\n"
+            "- `element is not visible`\n"
+            "- `element is currently animating`\n"
+            "- `element is fixed and being covered`\n"
+            "- `element is hidden by an overlay / modal / banner / tour`\n\n"
+            "**CRITICAL — the click line itself MUST be modified.** Adding a `beforeEach`\n"
+            "alone is NOT a fix. The same `cy.get(...).click()` will fail again because\n"
+            "the cover often re-appears or was never dismissable in the first place.\n\n"
+            "## Decide based on WHAT the covering element is\n\n"
+            "Read the error block carefully — it shows the covering element's tag, id\n"
+            "and class. Pick ONE of these strategies:\n\n"
+            "**Strategy 1 — Force-click (use this for VISUAL-ONLY overlays):**\n"
+            "Apply when the covering element is ANY of these:\n"
+            "- A `<canvas>` element (canvas overlays don't capture clicks anyway)\n"
+            "- An `<svg>` element used as a backdrop\n"
+            "- id/class contains: `Disabled`, `DisabledArea`, `Backdrop`, `Spotlight`,\n"
+            "  `Mask`, `Veil`, `Dim`, `Scrim`, `Highlight`, `TourTip` (the tip area\n"
+            "  itself, not a banner)\n"
+            "- The element has `pointer-events: none` style\n"
+            "- A full-viewport overlay with no visible close affordance in the DOM\n"
+            "Fix: change EVERY `.click()` on the affected target to `.click({{ force: true }})`.\n"
+            "This is the correct fix for visual-only dimming layers — they exist to\n"
+            "highlight things, not to block real interaction.\n\n"
+            "**Strategy 2 — Dismiss the cover first (use this for INTERACTIVE banners):**\n"
+            "Apply when the covering element is a banner/modal that has a clear close\n"
+            "control visible in the DOM snapshot, e.g.:\n"
+            "- Cookie consent: `[aria-label=\"Accept cookies\"]`, `.cookie-banner button`\n"
+            "- Modal dialogs with a close button: `[aria-label=\"Close\"]`, `.modal-close`\n"
+            "- Newsletter/popup with an `×` button selectable in the DOM\n"
+            "Add a `beforeEach` that clicks ONLY selectors that actually exist in the\n"
+            "DOM snapshot:\n"
+            "```\n"
+            "beforeEach(() => {{\n"
+            "  cy.visit('/');\n"
+            "  cy.get('body').then($b => {{\n"
+            "    const sels = [/* only selectors verified to exist in the DOM */];\n"
+            "    sels.forEach(s => {{\n"
+            "      if ($b.find(s).length) cy.get(s).first().click({{ force: true }});\n"
+            "    }});\n"
+            "  }});\n"
+            "}});\n"
+            "```\n"
+            "Then ALSO add `{{ force: true }}` to the action click — banners can re-appear.\n\n"
+            "**Strategy 3 — Off-screen / animating (less common):**\n"
+            "If the element is genuinely off-screen, prepend `.scrollIntoView()`.\n"
+            "If it is mid-animation, wait: `.should('not.have.class', 'animating')`.\n\n"
+            "When in doubt between Strategy 1 and 2: **prefer Strategy 1 (force-click)**.\n"
+            "It is the safer, more reliable fix for any 'covered by' error and never\n"
+            "introduces new failure modes.\n\n"
             "### F. Subject detached from DOM\n"
             "Error: `CypressError: cy… failed because the element has been detached`\n"
             "Fix: Re-query the element after the action that caused re-render:\n"
@@ -202,77 +264,112 @@ _HEAL_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 
-# ── Error patterns — covers all known Cypress error categories ──
+# ── Failure-block extraction ────────────────────────────────
+#
+# Cypress prints failures in multi-line blocks. Example:
+#
+#     Running:  someSpec.cy.js
+#     ...
+#       1) Suite name
+#            test title:
+#          CypressError: cy.click() failed because this element:
+#
+#            <a href="..." class="...">Send</a>
+#
+#          is not visible because its parent <nav#sq-nav> has CSS …
+#
+#       2) Suite name
+#          ...
+#
+#     (Screenshots)
+#
+# We must capture the WHOLE block (header + element HTML + reason + stack
+# preview) and tag it with the spec filename, so the healer knows which
+# file to rewrite and the classifier can see the actual element/reason
+# rather than just a truncated header.
 
-_SELECTOR_ERROR_PATTERNS = [
-    # Timeouts & element lookup
-    "Timed out retrying after",
-    "Expected to find element",
-    "cy.get() failed",
-    "No element found",
-    # Assertion failures
-    "AssertionError",
-    # Cypress command errors (covers all CypressError subtypes)
-    "CypressError",
-    # JS errors in test code
-    "TypeError",
-    "ReferenceError",
-    "is not a function",
-    "Cannot read properties",
-    "Cannot read property",
-    # Multi-element subject
-    "can only be called on a single element",
-    "contained 2 elements",
-    "contained 3 elements",
-    # Visit failures
-    "cy.visit() failed",
-    "failed trying to load",
-    # Element interaction failures
-    "cannot be interacted with",
-    "is not visible",
-    "is covered by another element",
-    "is currently animating",
-    "element has been detached",
-    # Navigation / URL
-    "cy.url() failed",
-    # Alias / intercept
-    "cy.wait() timed out waiting",
-    "No route found",
-    # Generic failure lines from Cypress spec reporter
-    "passing",
-    "failing",
-    "Error:",
-]
+_FAILURE_NUM_RE = re.compile(r"^\s+(\d+)\)\s+\S")
+_RUNNING_SPEC_RE = re.compile(r"\s*Running:\s+(.+\.cy\.js)")
+_FAILURES_HEADER_RE = re.compile(r"\(Failures\)|^\s*\d+\s+failing", re.IGNORECASE)
+_END_OF_FAILURES_RE = re.compile(
+    r"\s*(\(Screenshots\)|\(Run Finished\)|\(Results\)|={4,}|-{4,})"
+)
+
+_MAX_BLOCK_CHARS = 2500     # per-failure cap — leaves room for many blocks
+_MAX_BLOCKS = 12            # cap total failures we forward to the LLM
 
 
 def _extract_failure_messages(stdout: str, stderr: str) -> list[str]:
-    combined = stderr + "\n" + stdout
-    messages: list[str] = []
-    for line in combined.splitlines():
-        stripped = line.strip()
-        if any(p.lower() in stripped.lower() for p in _SELECTOR_ERROR_PATTERNS):
-            messages.append(stripped)
+    """Extract complete multi-line Cypress failure blocks, tagged with spec file.
 
-    in_error_block = False
+    Each returned string is a self-contained failure block:
+        [spec: foo.cy.js]
+        1) Suite name
+             test title:
+           CypressError: cy.click() failed because this element:
+
+             <a href="..." class="...">Send</a>
+
+           is not visible because its parent <nav#sq-nav> ...
+
+    The previous line-by-line filter cut off at the first blank line, which
+    discarded the element HTML and the human-readable reason — exactly the
+    fields the healer needs to actually fix a broken selector or assertion.
+    """
+    blocks: list[str] = []
+    current_spec: str = ""
+    current_block: list[str] = []
+    in_failures = False
+
+    def _flush() -> None:
+        if not current_block:
+            return
+        text = "\n".join(current_block).rstrip()
+        if not text:
+            current_block.clear()
+            return
+        tagged = f"[spec: {current_spec}]\n{text}" if current_spec else text
+        if len(tagged) > _MAX_BLOCK_CHARS:
+            tagged = tagged[:_MAX_BLOCK_CHARS] + "\n…[truncated]"
+        blocks.append(tagged)
+        current_block.clear()
+
     for line in stdout.splitlines():
-        if "failing" in line.lower() and re.search(r"\d+\s+failing", line):
-            in_error_block = True
+        m_spec = _RUNNING_SPEC_RE.match(line)
+        if m_spec:
+            _flush()
+            current_spec = m_spec.group(1).strip()
+            in_failures = False
             continue
-        if in_error_block:
-            stripped = line.strip()
-            if stripped and not stripped.startswith(("passing", "pending")):
-                messages.append(stripped)
-            if not stripped:
-                in_error_block = False
 
-    # Deduplicate while preserving order
-    seen: set[str] = set()
-    unique = []
-    for m in messages:
-        if m not in seen:
-            seen.add(m)
-            unique.append(m)
-    return unique[:20]
+        if _FAILURES_HEADER_RE.search(line):
+            _flush()
+            in_failures = True
+            continue
+
+        if in_failures and _END_OF_FAILURES_RE.match(line):
+            _flush()
+            in_failures = False
+            continue
+
+        if in_failures and _FAILURE_NUM_RE.match(line):
+            _flush()
+            current_block.append(line.rstrip())
+            continue
+
+        if in_failures and current_block:
+            current_block.append(line.rstrip())
+
+    _flush()
+
+    # Fallback: if Cypress crashed before any spec ran, surface stderr so the
+    # caller still sees something actionable instead of an empty list.
+    if not blocks:
+        stderr_clean = stderr.strip()
+        if stderr_clean:
+            blocks.append(f"[stderr]\n{stderr_clean[:_MAX_BLOCK_CHARS]}")
+
+    return blocks[:_MAX_BLOCKS]
 
 
 # ── Sync I/O helpers (wrapped with asyncio.to_thread at call sites) ─────────

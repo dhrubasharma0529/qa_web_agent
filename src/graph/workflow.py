@@ -298,6 +298,14 @@ def _route_executor(state: QAState) -> str:
     return "auto_done"
 
 
+def _route_pre_flight(state: QAState) -> str:
+    """Skip run_cypress entirely when pre_flight_check found no spec files."""
+    errors = state.get("errors") or []
+    if any("no Cypress spec files" in e for e in errors):
+        return "skip"
+    return "run"
+
+
 def _gate_4_router(state: QAState) -> str:
     """Route after phase_4_gate: approved → Phase 5, rejected → re-run executor."""
     return "approved" if state.get("phase_4_approved") else "rejected"
@@ -453,7 +461,11 @@ def build_graph(
     )
 
     # ── Phase 4 edges ───────────────────────────────────────
-    workflow.add_edge("pre_flight_check", "run_cypress")
+    workflow.add_conditional_edges(
+        "pre_flight_check",
+        _route_pre_flight,
+        {"run": "run_cypress", "skip": "aggregate_metrics"},
+    )
     workflow.add_edge("run_cypress", "classify_errors")
 
     workflow.add_conditional_edges(

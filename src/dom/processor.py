@@ -48,17 +48,40 @@ _CHUNK_SUMMARY_PROMPT = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            "You are a senior QA engineer analysing a DOM section for test planning. "
-            "Be concise and focus on testable behaviour.",
+            "You are a senior QA engineer analysing a DOM section for test planning.\n"
+            "The section may belong to ANY kind of web product: marketing site, blog, "
+            "e-commerce, SaaS dashboard, admin console, social feed, media player, "
+            "single-page app, multi-step wizard, documentation, search UI, auth flow, "
+            "data table, file uploader, chat, map, calendar, payments, etc.\n\n"
+            "Do NOT assume a fixed page skeleton (header/main/footer). Describe ONLY "
+            "what is actually present in this section. Use neutral language. Skip any "
+            "category that has zero evidence in the DOM rather than inventing it.\n\n"
+            "Ground every selector in the DOM verbatim — never guess attribute values. "
+            "Be concise and focused on testable behaviour.",
         ),
         (
             "human",
-            "Analyse the following DOM section and provide:\n"
-            "1. Interactive elements with their best selectors\n"
-            "2. User actions possible (click, type, select, navigate …)\n"
-            "3. Expected behaviours / state changes\n\n"
+            "Analyse the DOM section below and produce a structured summary.\n\n"
             "Section metadata: {section_metadata}\n\n"
-            "DOM content:\n```html\n{chunk_content}\n```",
+            "DOM content:\n```html\n{chunk_content}\n```\n\n"
+            "Cover the following — OMIT any item that does not apply:\n"
+            "1. **Section role** — what this slice appears to do (one short line; "
+            "   e.g. login form, product grid, settings panel, comment thread, video "
+            "   player, filter sidebar, error state, empty state). Infer from the DOM, "
+            "   not from assumptions.\n"
+            "2. **Interactive elements** — list each one with its best selector "
+            "   (prefer in order: data-cy → data-testid → id → unique aria-label → "
+            "   role+name → stable attribute combo). Quote attribute values verbatim.\n"
+            "3. **User actions** — concrete actions the DOM supports "
+            "   (click, type, upload, drag, hover, keyboard navigation, scroll, "
+            "   pagination, filter, sort, submit, copy, share, play/pause, etc.).\n"
+            "4. **Expected behaviours / state changes** — visible or implied "
+            "   (validation, navigation, modal open, toast, loading, optimistic "
+            "   update, async fetch, redirect, download, auth gate, etc.).\n"
+            "5. **Notable signals** — anything testers should know: "
+            "   missing labels, duplicate IDs, dynamic IDs, iframe boundaries, "
+            "   shadow DOM hints, role/aria mismatches, third-party widgets, "
+            "   media autoplay, CAPTCHA, rate limits, paywalls.",
         ),
     ]
 )
@@ -67,18 +90,41 @@ _MERGE_PROMPT = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            "You are a senior QA architect building a complete picture of a "
-            "web application for automated test planning.",
+            "You are a senior QA architect assembling a unified picture of a web "
+            "application from per-section summaries. The application could be ANY "
+            "kind of site or app — make no assumptions about its layout, framework, "
+            "or domain. Adapt your output to the evidence you actually have.\n\n"
+            "Be exhaustive about what IS present and silent about what is not. "
+            "Never fabricate elements, flows, or selectors that do not appear in the "
+            "summaries.",
         ),
         (
             "human",
-            "Combine the following section summaries into a **unified page analysis**.\n\n"
             "Section summaries:\n{all_summaries}\n\n"
-            "Produce:\n"
-            "1. Page structure overview (navigation, main content, footer, modals)\n"
-            "2. Complete list of interactive elements with recommended selectors\n"
-            "3. Key user flows identifiable from the DOM\n"
-            "4. Recommended test scenarios (smoke, regression, edge-case)",
+            "Produce a **unified page analysis** with the sections below. "
+            "Skip any section that has no evidence; do not pad with placeholders.\n\n"
+            "1. **Page identity** — one paragraph: what kind of page/app this is, "
+            "   its apparent primary purpose, and the dominant UI patterns observed "
+            "   (e.g. CRUD table, content feed, checkout funnel, dashboard, "
+            "   onboarding wizard, search-centric, media-centric, form-centric).\n"
+            "2. **Structural map** — the regions actually found in the DOM "
+            "   (use the labels the DOM suggests; do NOT force a header/main/footer "
+            "   template if it is not present). Note modals, drawers, popovers, "
+            "   iframes, and shadow roots if observed.\n"
+            "3. **Interactive inventory** — consolidated, deduplicated list of every "
+            "   interactive element with a verified selector and its purpose. Group "
+            "   by region or feature for readability.\n"
+            "4. **User flows** — end-to-end paths the DOM supports (e.g. sign-in, "
+            "   add-to-cart, filter+sort, create-record, multi-step submit). Only "
+            "   list flows whose required elements are actually present.\n"
+            "5. **Test scenarios** — recommended coverage tiered as: smoke "
+            "   (critical happy paths), regression (feature breadth), edge cases "
+            "   (validation, empty/error/loading states, boundaries, accessibility, "
+            "   responsive/keyboard, network failure, auth/permission gates). "
+            "   Tailor categories to what this specific app actually exposes.\n"
+            "6. **Risks & gaps** — testability concerns surfaced across sections "
+            "   (dynamic selectors, missing test hooks, hidden state, third-party "
+            "   embeds, race conditions, observability gaps).",
         ),
     ]
 )
