@@ -6,15 +6,12 @@ FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
-# Step 1: bootstrap deps + Node 20 via NodeSource.
-# Cypress 15.x bundles `tsx` which requires Node >=20.6 (or >=18.19 via --import).
-# Debian 12's apt nodejs is 18.20 which dropped the --loader shim tsx still calls.
-# Pinning to Node 20 LTS via NodeSource resolves "tsx must be loaded with --import".
+# System deps for Node, Cypress, and Playwright/Chromium.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl gnupg ca-certificates && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends \
-        nodejs \
+        nodejs npm curl gnupg \
         # Cypress runtime
         libgtk-3-0 libgtk2.0-0 libnotify-dev libgconf-2-4 \
         libnss3 libxss1 libasound2 libxtst6 xauth xvfb \
