@@ -293,10 +293,17 @@ class PlaywrightAdapter:
             await self._start_impl()
 
         nav_timeout = 60_000 if config.TARGET_ENV == "local" else 30_000
-        networkidle_timeout = 30_000 if config.TARGET_ENV == "local" else 15_000
+        # Networkidle is best-effort: SPAs with polling/analytics never reach it.
+        # Cap at 8s and swallow timeouts — we already have DOMContentLoaded, which
+        # is enough for our element-extraction JS. Without this cap, the renderer
+        # keeps the page alive (and CPU busy) waiting for an idle that never comes.
+        networkidle_timeout = 8_000
 
         await self._page.goto(url, wait_until="domcontentloaded", timeout=nav_timeout)
-        await self._page.wait_for_load_state("networkidle", timeout=networkidle_timeout)
+        try:
+            await self._page.wait_for_load_state("networkidle", timeout=networkidle_timeout)
+        except Exception:
+            logger.debug("networkidle not reached within %dms — proceeding anyway", networkidle_timeout)
 
         title = await self._page.title()
         html = await self._page.evaluate(_FILTERED_HTML_JS.strip())
@@ -310,6 +317,12 @@ class PlaywrightAdapter:
 
         screenshot = await self._page.screenshot(full_page=True, type="png")
 
+        # NOTE: do not navigate away here. The architect agent calls
+        # crawl_page() then analyze_dom (which re-runs evaluate_js on the live
+        # page via DOMProcessor). Navigating to about:blank breaks that second
+        # extraction. The networkidle cap above is what actually stops the
+        # renderer-CPU leak; with networkidle bounded to 8s, the page sits
+        # mostly idle on its own.
         return PageSnapshot(
             url=self._page.url,
             title=title,

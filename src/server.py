@@ -68,9 +68,12 @@ async def _docs_refresh_loop() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown hook — manages browser, checkpointer, graph & docs refresh."""
+    # Do NOT eagerly start Playwright at boot. The adapter calls
+    # _ensure_started() lazily on the first crawl, so Chromium only runs while
+    # work is in flight. Starting it here pinned a renderer process at 100% CPU
+    # whenever the parked page had any rAF/animation/polling.
     adapter = PlaywrightAdapter()
-    await adapter.start()
-    logger.info("Browser adapter started (%s)", type(adapter).__name__)
+    logger.info("Browser adapter constructed (%s) — will start lazily on first crawl", type(adapter).__name__)
 
     checkpointer = await create_async_checkpointer()
     logger.info("Checkpointer ready (%s)", type(checkpointer).__name__)
