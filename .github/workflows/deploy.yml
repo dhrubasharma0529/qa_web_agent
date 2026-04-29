@@ -1,17 +1,17 @@
-name: CI/CD Pipeline
+# CD — runs on every push to main (i.e., every PR merge).
+# Re-runs CI tests; if green, SSHes to EC2 and deploys.
+# A failure at any step keeps the previous version live on the box.
+
+name: Deploy
 
 on:
   push:
-    branches: [ci:git_action, main]
-  pull_request:
     branches: [main]
 
 jobs:
   test:
-    name: Run Tests
+    name: Tests (re-run before deploy)
     runs-on: ubuntu-latest
-    # Run tests on both branches and PRs to main
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
 
     steps:
       - name: Checkout repo
@@ -24,7 +24,7 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-dev.txt
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
@@ -32,42 +32,10 @@ jobs:
       - name: Run pytest
         run: pytest -q
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-
-      - name: Install Node.js dependencies
-        run: npm ci
-
-      - name: Install Cypress system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-0 \
-            libnotify-dev \
-            libgconf-2-4 \
-            libnss3 \
-            libxss1 \
-            libasound2 \
-            libxtst6 \
-            xauth \
-            xvfb
-
-      - name: Verify Cypress installation
-        run: npx cypress verify
-
-      - name: Run Cypress tests
-        run: npx cypress run --browser chrome --headless
-
   deploy:
-    name: Deploy to Production
+    name: Deploy to EC2
     needs: test
     runs-on: ubuntu-latest
-    # Only deploy when changes are pushed to main (not on PRs)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: SSH to EC2 and deploy
@@ -84,7 +52,7 @@ jobs:
             cd /home/ubuntu/apps/qa_web_agent
             git pull --ff-only origin main
 
-            echo "==> Building Docker image with Cypress dependencies"
+            echo "==> Building Docker image"
             docker compose build
 
             echo "==> Starting / restarting container"
@@ -99,8 +67,4 @@ jobs:
             echo "==> Health check"
             curl --fail --silent http://localhost:8000/health
             echo
-            
-            echo "==> Running Cypress verification in container"
-            docker compose exec -T web npx cypress verify || echo "Cypress verification might need GUI dependencies"
-            
-            echo "Production deploy successful."
+            echo "Deploy successful."

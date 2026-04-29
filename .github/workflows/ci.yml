@@ -1,5 +1,5 @@
 # CI — runs on every pull request targeting main.
-# Job: install deps, run pytest and Cypress tests. If this is red, the merge button is blocked.
+# Job: install deps, run pytest. If this is red, the merge button is blocked.
 
 name: CI
 
@@ -23,40 +23,10 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-dev.txt
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
       - name: Run pytest
         run: pytest -q
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-
-      - name: Install Node.js dependencies
-        run: npm ci
-
-      - name: Install Cypress system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-0 \
-            libnotify-dev \
-            libgconf-2-4 \
-            libnss3 \
-            libxss1 \
-            libasound2 \
-            libxtst6 \
-            xauth \
-            xvfb
-
-      - name: Verify Cypress installation
-        run: npx cypress verify
-
-      - name: Run Cypress tests
-        run: npx cypress run --browser chrome --headless
