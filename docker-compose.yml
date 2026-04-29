@@ -1,10 +1,11 @@
-version: "3.9"
-
 services:
   qa-agent:
     build: .
     ports:
       - "8000:8000"
+    # Chromium (Playwright + Cypress's Electron) needs more than Docker's
+    # default 64MB /dev/shm or its renderer crashes silently on real pages.
+    shm_size: '2gb'
     volumes:
       # Mount generated test artefacts so they persist on the host
       - ./cypress:/app/cypress
