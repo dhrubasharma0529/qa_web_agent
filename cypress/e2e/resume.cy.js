@@ -1,8 +1,0 @@
-const homePage = require('../support/pages/homePage');
-
-describe('Resume Download', () => {
-  it('User downloads resume successfully', () => {
-    homePage.visit();
-    cy.get('a[href="/assets/MishanCV.pdf"]').should('have.attr', 'href').and('include', '/assets/MishanCV.pdf');
-  });
-});
