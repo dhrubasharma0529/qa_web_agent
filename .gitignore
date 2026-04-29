@@ -40,6 +40,8 @@ yarn-error.log*
 cypress/screenshots/
 cypress/videos/
 cypress/downloads/
+cypress/e2e/
+cypress/support/pages/
 
 # --- LangGraph runtime -----------------------------------------------------
 checkpoints.db

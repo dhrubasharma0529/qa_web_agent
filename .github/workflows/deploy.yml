@@ -48,9 +48,12 @@ jobs:
           script: |
             set -euo pipefail
 
-            echo "==> Pulling latest from main"
             cd /home/ubuntu/apps/qa_web_agent
-            git pull --ff-only origin main
+
+            echo "==> Syncing to origin/main (discards local mutations from agent runs)"
+            git fetch --prune origin main
+            git reset --hard origin/main
+            git clean -fd -- cypress/e2e cypress/support/pages reports
 
             echo "==> Building Docker image"
             docker compose build
@@ -61,10 +64,16 @@ jobs:
             echo "==> Pruning old images"
             docker image prune -f
 
-            echo "==> Waiting for app to come up"
-            sleep 8
+            echo "==> Health check (poll up to 60s)"
+            for i in $(seq 1 30); do
+              if curl --fail --silent --max-time 2 http://localhost:8000/health >/dev/null; then
+                echo "Healthy after ${i} attempt(s)."
+                echo "Deploy successful."
+                exit 0
+              fi
+              sleep 2
+            done
 
-            echo "==> Health check"
-            curl --fail --silent http://localhost:8000/health
-            echo
-            echo "Deploy successful."
+            echo "Health check failed after 60s. Recent container logs:"
+            docker compose logs --tail=100 qa-agent || true
+            exit 1
