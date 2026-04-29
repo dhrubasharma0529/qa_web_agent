@@ -183,6 +183,41 @@
     .phase-step.ps-error  { background:var(--red-dim); }
     .phase-step.ps-error .ps-name { color:var(--red); }
 
+    /* ── Pipeline Tab (vertical timeline) ─── */
+    .pl-card {
+      background:var(--surface-alt); border:1px solid var(--border);
+      border-left:4px solid var(--border); border-radius:var(--radius);
+      padding:0.85rem 1rem; margin-bottom:0.6rem;
+    }
+    .pl-card.pl-done    { border-left-color:var(--green); }
+    .pl-card.pl-active  { border-left-color:var(--accent); }
+    .pl-card.pl-gate    { border-left-color:var(--purple); }
+    .pl-card.pl-skipped { border-left-color:var(--text-muted); opacity:0.7; }
+    .pl-head {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:0.5rem; margin-bottom:0.35rem;
+    }
+    .pl-title { font-weight:600; font-size:0.9rem; }
+    .pl-badge {
+      font-size:0.7rem; padding:0.15rem 0.5rem; border-radius:999px;
+      background:var(--surface2); color:var(--text-dim);
+    }
+    .pl-badge.pl-b-done    { background:var(--green-dim); color:var(--green); }
+    .pl-badge.pl-b-active  { background:var(--accent-dim); color:var(--accent); }
+    .pl-badge.pl-b-gate    { background:var(--purple-dim); color:var(--purple); }
+    .pl-sub {
+      font-size:0.75rem; color:var(--text-dim); font-family:var(--mono);
+    }
+    .pl-nodes {
+      display:flex; flex-wrap:wrap; gap:0.3rem; margin-top:0.4rem;
+    }
+    .pl-node {
+      font-size:0.7rem; padding:0.15rem 0.45rem; border-radius:4px;
+      background:var(--surface2); color:var(--text-muted); font-family:var(--mono);
+    }
+    .pl-node.pl-n-done   { color:var(--green); }
+    .pl-node.pl-n-active { color:var(--accent); animation:pulse 1.4s ease-in-out infinite; }
+
     /* ── Live Activity Feed (below pipeline) ─── */
     #activity-feed {
       display:none; background:var(--surface); border:1px solid var(--border);
@@ -1033,15 +1068,130 @@ async function renderReports(reportPaths) {
   }
 }
 
+// Render the Pipeline tab from state — 6 vertical phase cards with status,
+// sub-nodes, and brief output. Driven by the same data the ribbon uses, so
+// it stays in sync whether the run is live (SSE) or being polled.
+function renderPipelineDetail(values, nextNodes) {
+  values = values || {};
+  nextNodes = nextNodes || [];
+
+  // Determine active phase from next nodes (gates included).
+  let activeP = null;
+  for (const n of nextNodes) {
+    for (const [phase, nodes] of Object.entries(PHASE_NODES)) {
+      if (nodes.includes(n)) { activeP = parseInt(phase); break; }
+    }
+    if (activeP === null && Object.prototype.hasOwnProperty.call(GATE_NODES, n)) {
+      activeP = GATE_NODES[n];
+    }
+    if (activeP !== null) break;
+  }
+
+  const exec = values.execution_history || [];
+  const lastRun = exec.length ? exec[exec.length-1] : null;
+  const reportPaths = (values.report_paths || [])
+    .concat((values.cypress_file_paths || []).filter(p => p.endsWith('.md')));
+
+  // Per-phase done predicates — same logic as syncPipelineFromState
+  const done = {
+    0: !!(values.prd_site_type || values.phase_0_approved),
+    1: !!values.technical_overview,
+    2: !!(values.test_cases && values.test_cases.length),
+    3: !!(values.cypress_file_paths && values.cypress_file_paths.length),
+    4: !!exec.length,
+    5: !!reportPaths.length,
+  };
+
+  const ICON = {0:'📝',1:'🕷️',2:'📋',3:'💻',4:'🚀',5:'📊'};
+
+  // Per-phase summary line
+  function summary(p) {
+    if (p === 0) {
+      if (prdSource === 'own') return 'Skipped — PRD provided by user';
+      const t = values.prd_site_type ? `Site type: ${values.prd_site_type}` : '';
+      const refs = (values.prd_references || []).length;
+      return [t, refs ? `${refs} reference site(s)` : ''].filter(Boolean).join(' · ');
+    }
+    if (p === 1) {
+      const kg = values.technical_overview;
+      if (!kg) return '';
+      const impl = (kg.implemented_features || []).length;
+      const miss = (kg.missing_features || []).length;
+      return `${kg.app_title || 'App'} — ${impl} implemented · ${miss} missing`;
+    }
+    if (p === 2) {
+      const tc = (values.test_cases || []).length;
+      return tc ? `${tc} test case(s) generated` : '';
+    }
+    if (p === 3) {
+      const files = (values.cypress_file_paths || []).filter(f => f.endsWith('.cy.js') || f.endsWith('.js'));
+      const lr = values.lint_retry_count || 0;
+      return files.length ? `${files.length} file(s) written${lr ? ` · ${lr} lint retry/retries` : ''}` : '';
+    }
+    if (p === 4) {
+      if (!lastRun) return '';
+      const hr = values.heal_retry_count || 0;
+      return `${lastRun.passed||0} passed · ${lastRun.failed||0} failed · attempt #${lastRun.attempt||1}${hr ? ` · ${hr} heal pass(es)` : ''}`;
+    }
+    if (p === 5) {
+      return reportPaths.length ? `${reportPaths.length} report file(s) written` : '';
+    }
+    return '';
+  }
+
+  // Per-node status within a phase (done if any later phase is done; active if it's the next node)
+  function nodeStateFor(node, phase) {
+    if (nextNodes.includes(node)) return 'pl-n-active';
+    // If this phase is done OR a later phase has progressed, mark all nodes as done
+    const laterStarted = [0,1,2,3,4,5].some(q => q > phase && done[q]);
+    if (done[phase] || laterStarted) return 'pl-n-done';
+    return '';
+  }
+
+  let h = '';
+  for (const p of [0,1,2,3,4,5]) {
+    const isSkipped = p === 0 && prdSource === 'own';
+    const isActive = !isSkipped && p === activeP;
+    const isGate = isActive && nextNodes.some(n => GATE_NODES[n] === p);
+    const isDone = !isActive && done[p];
+
+    const cardCls = isSkipped ? 'pl-skipped' : isGate ? 'pl-gate' : isActive ? 'pl-active' : isDone ? 'pl-done' : '';
+    const badgeText = isSkipped ? 'Skipped' : isGate ? '⏸ Review' : isActive ? 'Running…' : isDone ? 'Done ✓' : 'Waiting';
+    const badgeCls = isGate ? 'pl-b-gate' : isActive ? 'pl-b-active' : isDone ? 'pl-b-done' : '';
+
+    const sub = summary(p);
+    const nodes = PHASE_NODES[p] || [];
+    const nodesHtml = nodes.map(n => {
+      const cls = nodeStateFor(n, p);
+      return `<span class="pl-node ${cls}">${esc(n)}</span>`;
+    }).join('');
+
+    h += `<div class="pl-card ${cardCls}">
+      <div class="pl-head">
+        <div class="pl-title">${ICON[p]} Phase ${p} — ${esc(PHASE_NAMES[p])}</div>
+        <div class="pl-badge ${badgeCls}">${esc(badgeText)}</div>
+      </div>
+      ${sub ? `<div class="pl-sub">${esc(sub)}</div>` : ''}
+      <div class="pl-nodes">${nodesHtml}</div>
+    </div>`;
+  }
+
+  document.getElementById('pipeline-detail').innerHTML = h;
+}
+
 function updateAllTabs(state) {
   if (!state) return;
   const r = state.values || state;
   document.getElementById('raw-json').textContent = JSON.stringify(state, null, 2);
+  renderPipelineDetail(r, state.next || []);
   if (r.technical_overview) renderKnowledgeGraph(r.technical_overview);
   if (r.test_cases?.length)  renderTestCases(r.test_cases);
   if (r.cypress_file_paths?.length) renderCypressFiles(r.cypress_file_paths);
   if (r.execution_history?.length)  renderExecution(r.execution_history, r.classified_errors);
-  const reportPaths = (r.cypress_file_paths||[]).filter(p=>p.endsWith('.md'));
+  // Reports come from state.report_paths (preferred); fall back to any .md
+  // entries in cypress_file_paths for backwards compat with older runs.
+  const reportPaths = (r.report_paths || [])
+    .concat((r.cypress_file_paths || []).filter(p => p.endsWith('.md')));
   if (reportPaths.length) renderReports(reportPaths);
 }
 
@@ -1571,6 +1721,10 @@ async function runAnalysis() {
     setPipelineDetail(0, 'Own PRD provided');
   }
   completedPhases.clear(); activePhase.v = null;
+  // Seed the Pipeline tab with all 6 phases as Waiting so the user can switch
+  // to it immediately and see the structure. updateAllTabs() will refresh it
+  // on every state snapshot as the run progresses.
+  renderPipelineDetail({}, []);
   document.getElementById('btn-run').disabled = true;
   setGlobalStatus('status-running','Starting…');
 
